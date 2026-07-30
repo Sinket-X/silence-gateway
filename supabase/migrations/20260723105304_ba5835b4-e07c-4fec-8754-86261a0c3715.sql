@@ -1,0 +1,9 @@
+REVOKE SELECT ON public.profiles FROM anon;
+REVOKE SELECT ON public.api_keys FROM anon;
+REVOKE SELECT ON public.usage_events FROM anon;
+REVOKE SELECT ON public.user_roles FROM anon;
+REVOKE SELECT ON public.providers FROM anon;
+REVOKE SELECT ON public.provider_tokens FROM anon;
+REVOKE SELECT ON public.models FROM anon;
+REVOKE SELECT ON public.banned_ips FROM anon;
+REVOKE SELECT ON public.login_attempts FROM anon;

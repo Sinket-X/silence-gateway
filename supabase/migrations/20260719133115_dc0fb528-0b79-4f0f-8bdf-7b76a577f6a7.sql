@@ -1,0 +1,1 @@
+update provider_tokens set cooldown_until=null, health='healthy';

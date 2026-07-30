@@ -1,0 +1,1 @@
+UPDATE public.provider_tokens SET cooldown_until = NULL, health = 'healthy' WHERE cooldown_until IS NOT NULL OR health <> 'healthy';
