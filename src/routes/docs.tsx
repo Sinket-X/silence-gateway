@@ -1,6 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { Check, Copy, Terminal, Sparkles, Zap, ShieldCheck, Rocket, ChevronRight, ChevronDown, KeyRound, Link2 } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Terminal,
+  Sparkles,
+  Zap,
+  ShieldCheck,
+  Rocket,
+  ChevronRight,
+  ChevronDown,
+  KeyRound,
+  Link2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import anthropicLogo from "@/assets/logos/anthropic.svg.asset.json";
 import linuxLogo from "@/assets/logos/linux.svg.asset.json";
@@ -12,7 +24,19 @@ export const Route = createFileRoute("/docs")({
   head: () => ({
     meta: [
       { title: "Docs — Silence API · Claude Code, Kimi Code, OpenAI SDK" },
-      { name: "description", content: "Silence API docs: OpenAI-compatible gateway, Anthropic /v1/messages endpoint, and step-by-step setup for Claude Code and Kimi Code on Linux, macOS and Windows." },
+      {
+        name: "description",
+        content:
+          "Silence API docs: OpenAI-compatible gateway, Anthropic /v1/messages endpoint, and step-by-step setup for Claude Code and Kimi Code on Linux, macOS and Windows.",
+      },
+      { property: "og:title", content: "Silence API Docs — Claude Code Setup" },
+      {
+        property: "og:description",
+        content:
+          "Configure Claude Code, Kimi Code, and OpenAI-compatible clients to use Silence API.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: DocsPage,
@@ -38,7 +62,14 @@ function KimiLogo({ className }: { className?: string }) {
         </linearGradient>
       </defs>
       <rect x="1.5" y="1.5" width="21" height="21" rx="6" fill="url(#kimi-g)" />
-      <path d="M8 6.5v11M8 12l6-5.5M8 12l6.2 5.5" stroke="white" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path
+        d="M8 6.5v11M8 12l6-5.5M8 12l6.2 5.5"
+        stroke="white"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
     </svg>
   );
 }
@@ -53,7 +84,13 @@ function CopyButton({ text }: { text: string }) {
     <button
       type="button"
       onClick={async () => {
-        try { await navigator.clipboard.writeText(text); setOk(true); setTimeout(() => setOk(false), 1400); } catch {}
+        try {
+          await navigator.clipboard.writeText(text);
+          setOk(true);
+          setTimeout(() => setOk(false), 1400);
+        } catch {
+          setOk(false);
+        }
       }}
       className="absolute right-2 top-2 inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.08] px-2 py-1 text-[11px] font-medium text-slate-200/90 backdrop-blur transition hover:scale-[1.03] hover:bg-white/[0.16] hover:text-white active:scale-95"
     >
@@ -71,7 +108,8 @@ function CodeBlock({ code, lang, filename }: { code: string; lang?: string; file
         <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
         <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
         <span className="ml-2 min-w-0 flex-1 truncate text-[11px] font-medium text-slate-400">
-          {filename ?? (lang === "powershell" ? "PowerShell" : lang === "bash" ? "bash" : "terminal")}
+          {filename ??
+            (lang === "powershell" ? "PowerShell" : lang === "bash" ? "bash" : "terminal")}
         </span>
         {lang && (
           <span className="hidden rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[10px] uppercase tracking-widest text-slate-400 sm:inline">
@@ -97,15 +135,29 @@ function DocsPage() {
   const [openKimiStep, setOpenKimiStep] = useState<number | null>(1);
 
   useEffect(() => {
-    const ids = ["quickstart", "windows-noinstall", "claude-code", "kimi-code", "openai-sdk", "anthropic-sdk", "streaming", "errors"];
+    const ids = [
+      "quickstart",
+      "windows-noinstall",
+      "claude-code",
+      "kimi-code",
+      "openai-sdk",
+      "anthropic-sdk",
+      "streaming",
+      "errors",
+    ];
     const obs = new IntersectionObserver(
       (entries) => {
-        const vis = entries.filter((e) => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        const vis = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
         if (vis?.target?.id) setActiveSection(vis.target.id);
       },
       { rootMargin: "-30% 0px -60% 0px", threshold: [0, 0.25, 0.5, 1] },
     );
-    ids.forEach((id) => { const el = document.getElementById(id); if (el) obs.observe(el); });
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) obs.observe(el);
+    });
     return () => obs.disconnect();
   }, []);
 
@@ -132,33 +184,51 @@ claude --version`,
   };
 
   const envCmd: Record<OS, string> = {
-    linux: `# add to ~/.bashrc or ~/.zshrc
+    linux: `# Bash: persist the settings (do not only run temporary exports)
+cat >> ~/.bashrc <<'SILENCE_CLAUDE'
 export ANTHROPIC_BASE_URL="${BASE_URL}"
 export ANTHROPIC_AUTH_TOKEN="<YOUR_SILENCE_API_KEY>"
 export ANTHROPIC_MODEL="<YOUR_MODEL_NAME>"
 export ANTHROPIC_SMALL_FAST_MODEL="<YOUR_MODEL_NAME>"
+export ANTHROPIC_CUSTOM_MODEL_OPTION="<YOUR_MODEL_NAME>"
+export ANTHROPIC_CUSTOM_MODEL_OPTION_NAME="Silence · <YOUR_MODEL_NAME>"
+export ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION="Routed through Silence API"
+SILENCE_CLAUDE
 
-# reload
-source ~/.bashrc`,
-    mac: `# add to ~/.zshrc
+source ~/.bashrc
+claude auth status`,
+    mac: `# Zsh: persist the settings (do not only run temporary exports)
+cat >> ~/.zshrc <<'SILENCE_CLAUDE'
 export ANTHROPIC_BASE_URL="${BASE_URL}"
 export ANTHROPIC_AUTH_TOKEN="<YOUR_SILENCE_API_KEY>"
 export ANTHROPIC_MODEL="<YOUR_MODEL_NAME>"
 export ANTHROPIC_SMALL_FAST_MODEL="<YOUR_MODEL_NAME>"
+export ANTHROPIC_CUSTOM_MODEL_OPTION="<YOUR_MODEL_NAME>"
+export ANTHROPIC_CUSTOM_MODEL_OPTION_NAME="Silence · <YOUR_MODEL_NAME>"
+export ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION="Routed through Silence API"
+SILENCE_CLAUDE
 
-# reload
-source ~/.zshrc`,
+source ~/.zshrc
+claude auth status`,
     windows: `# PowerShell — persist for current user
 setx ANTHROPIC_BASE_URL "${BASE_URL}"
 setx ANTHROPIC_AUTH_TOKEN "<YOUR_SILENCE_API_KEY>"
 setx ANTHROPIC_MODEL "<YOUR_MODEL_NAME>"
 setx ANTHROPIC_SMALL_FAST_MODEL "<YOUR_MODEL_NAME>"
+setx ANTHROPIC_CUSTOM_MODEL_OPTION "<YOUR_MODEL_NAME>"
+setx ANTHROPIC_CUSTOM_MODEL_OPTION_NAME "Silence · <YOUR_MODEL_NAME>"
+setx ANTHROPIC_CUSTOM_MODEL_OPTION_DESCRIPTION "Routed through Silence API"
 
-# open a NEW PowerShell window so the vars are loaded`,
+# open a NEW PowerShell window, then verify with: claude auth status`,
   };
 
-  const runCmd = `claude
-# → then just chat. Claude Code will route through Silence API.`;
+  const runCmd = `# Start a new session
+claude --model "<YOUR_MODEL_NAME>"
+
+# Resume the latest project session with the configured model
+claude --continue --model "<YOUR_MODEL_NAME>"
+
+# The /model picker now includes “Silence · <YOUR_MODEL_NAME>” as a custom option.`;
 
   type TocItem = { id: string; label: string; icon?: typeof Rocket | null; logo?: string };
   const toc: TocItem[] = [
@@ -233,15 +303,27 @@ kimi -p "Explain this repo in 3 bullet points."`;
             <div className="grid h-8 w-8 place-items-center rounded-lg btn-primary text-white">
               <span className="text-sm font-bold">S</span>
             </div>
-            <span className="truncate text-sm font-semibold tracking-tight">Silence<span className="text-[color:var(--brand)]">API</span></span>
-            <span className="ml-2 hidden rounded-full border border-[color:var(--hairline)] bg-white px-2 py-0.5 text-[10px] font-medium uppercase tracking-widest text-muted-foreground sm:inline">Docs</span>
+            <span className="truncate text-sm font-semibold tracking-tight">
+              Silence<span className="text-[color:var(--brand)]">API</span>
+            </span>
+            <span className="ml-2 hidden rounded-full border border-[color:var(--hairline)] bg-white px-2 py-0.5 text-[10px] font-medium uppercase tracking-widest text-muted-foreground sm:inline">
+              Docs
+            </span>
           </Link>
           <div className="flex shrink-0 items-center gap-2">
-            <a href="#claude-code" className="hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground sm:inline-flex">
+            <a
+              href="#claude-code"
+              className="hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground sm:inline-flex"
+            >
               <LogoImg src={ANTHROPIC_URL} alt="Claude" className="h-3.5 w-3.5" />
               Claude Code
             </a>
-            <Link to="/admin" className="rounded-lg btn-primary px-3 py-1.5 text-xs font-semibold text-white">Admin</Link>
+            <Link
+              to="/admin"
+              className="rounded-lg btn-primary px-3 py-1.5 text-xs font-semibold text-white"
+            >
+              Admin
+            </Link>
           </div>
         </div>
       </header>
@@ -254,16 +336,24 @@ kimi -p "Explain this repo in 3 bullet points."`;
             <Sparkles className="h-3 w-3" /> Developer Docs · v1
           </span>
           <h1 className="mt-4 max-w-3xl text-[28px] font-semibold leading-tight tracking-tight sm:text-4xl md:text-5xl">
-            Ship faster with <span className="metallic-text">Silence API</span> — the last AI gateway you'll ever need.
+            Ship faster with <span className="metallic-text">Silence API</span> — the last AI
+            gateway you'll ever need.
           </h1>
           <p className="mt-4 max-w-2xl text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
-            One endpoint. OpenAI-compatible chat completions and Anthropic-compatible messages. A drop-in setup for Claude Code, auto token rotation, live cost tracking.
+            One endpoint. OpenAI-compatible chat completions and Anthropic-compatible messages. A
+            drop-in setup for Claude Code, auto token rotation, live cost tracking.
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-2">
-            <a href="#quickstart" className="inline-flex items-center gap-1.5 rounded-xl btn-primary px-4 py-2 text-sm font-semibold text-white">
+            <a
+              href="#quickstart"
+              className="inline-flex items-center gap-1.5 rounded-xl btn-primary px-4 py-2 text-sm font-semibold text-white"
+            >
               Quickstart <ChevronRight className="h-4 w-4" />
             </a>
-            <a href="#claude-code" className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--hairline)] bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50">
+            <a
+              href="#claude-code"
+              className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--hairline)] bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+            >
               <LogoImg src={ANTHROPIC_URL} alt="Claude" className="h-4 w-4" />
               Set up Claude Code
             </a>
@@ -272,16 +362,30 @@ kimi -p "Explain this repo in 3 bullet points."`;
           {/* Feature strip */}
           <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {[
-              { icon: <Zap className="h-4 w-4 text-[color:var(--brand)]" />, t: "OpenAI compatible", d: "/v1/chat/completions" },
-              { icon: <LogoImg src={ANTHROPIC_URL} alt="Anthropic" className="h-4 w-4" />, t: "Anthropic compatible", d: "/v1/messages" },
-              { icon: <ShieldCheck className="h-4 w-4 text-[color:var(--brand)]" />, t: "Auto token rotation", d: "rate-limit safe" },
+              {
+                icon: <Zap className="h-4 w-4 text-[color:var(--brand)]" />,
+                t: "OpenAI compatible",
+                d: "/v1/chat/completions",
+              },
+              {
+                icon: <LogoImg src={ANTHROPIC_URL} alt="Anthropic" className="h-4 w-4" />,
+                t: "Anthropic compatible",
+                d: "/v1/messages",
+              },
+              {
+                icon: <ShieldCheck className="h-4 w-4 text-[color:var(--brand)]" />,
+                t: "Auto token rotation",
+                d: "rate-limit safe",
+              },
             ].map((f, i) => (
               <div
                 key={f.t}
                 className="docs-fade-up flex min-w-0 items-start gap-3 rounded-2xl border border-[color:var(--hairline)] bg-white/70 p-3 transition-transform hover:-translate-y-0.5 hover:shadow-[var(--shadow-elegant)]"
                 style={{ animationDelay: `${120 + i * 90}ms` }}
               >
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[color:var(--brand-soft)]">{f.icon}</div>
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[color:var(--brand-soft)]">
+                  {f.icon}
+                </div>
                 <div className="min-w-0">
                   <div className="text-sm font-semibold">{f.t}</div>
                   <div className="truncate text-xs text-muted-foreground">{f.d}</div>
@@ -295,12 +399,16 @@ kimi -p "Explain this repo in 3 bullet points."`;
           {/* TOC */}
           <aside className="hidden lg:block">
             <div className="sticky top-24">
-              <div className="mb-3 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">On this page</div>
+              <div className="mb-3 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                On this page
+              </div>
               <nav className="flex flex-col gap-0.5">
                 {toc.map((t) => {
                   const active = activeSection === t.id;
                   return (
-                    <a key={t.id} href={`#${t.id}`}
+                    <a
+                      key={t.id}
+                      href={`#${t.id}`}
                       className={cn(
                         "group flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-300",
                         active
@@ -308,11 +416,13 @@ kimi -p "Explain this repo in 3 bullet points."`;
                           : "text-muted-foreground hover:translate-x-0.5 hover:bg-slate-50 hover:text-foreground",
                       )}
                     >
-                      {t.logo
-                        ? <LogoImg src={t.logo} alt="" className="h-3.5 w-3.5" />
-                        : t.icon
-                          ? <t.icon className={cn("h-3.5 w-3.5", active && "text-[color:var(--brand)]")} />
-                          : null}
+                      {t.logo ? (
+                        <LogoImg src={t.logo} alt="" className="h-3.5 w-3.5" />
+                      ) : t.icon ? (
+                        <t.icon
+                          className={cn("h-3.5 w-3.5", active && "text-[color:var(--brand)]")}
+                        />
+                      ) : null}
                       {t.label}
                     </a>
                   );
@@ -324,20 +434,33 @@ kimi -p "Explain this repo in 3 bullet points."`;
           {/* Content */}
           <main className="min-w-0 space-y-14">
             {/* Quickstart */}
-            <SectionHeader id="quickstart" eyebrow="Get started" title="Quickstart" desc="Point any OpenAI or Anthropic SDK at Silence API — one env var and you're live." />
+            <SectionHeader
+              id="quickstart"
+              eyebrow="Get started"
+              title="Quickstart"
+              desc="Point any OpenAI or Anthropic SDK at Silence API — one env var and you're live."
+            />
             <BaseUrlPanel />
-            <CodeBlock lang="bash" filename="quickstart.sh" code={`curl ${BASE_URL}/v1/chat/completions \\
+            <CodeBlock
+              lang="bash"
+              filename="quickstart.sh"
+              code={`curl ${BASE_URL}/v1/chat/completions \\
   -H "Authorization: Bearer $SILENCE_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "<YOUR_MODEL_NAME>",
     "messages": [{"role":"user","content":"Hello Silence"}]
-  }'`} />
+  }'`}
+            />
 
             {/* Windows no-install */}
             <SectionHeader
               id="windows-noinstall"
-              eyebrow={<span className="inline-flex items-center gap-1.5"><LogoImg src={WINDOWS_URL} alt="Windows" className="h-3.5 w-3.5" /> Windows</span>}
+              eyebrow={
+                <span className="inline-flex items-center gap-1.5">
+                  <LogoImg src={WINDOWS_URL} alt="Windows" className="h-3.5 w-3.5" /> Windows
+                </span>
+              }
               title="Chat from Windows — no install"
               desc="Every Windows 10/11 already ships PowerShell with Invoke-RestMethod and curl.exe. Paste, run, done — nothing to install."
             />
@@ -350,7 +473,10 @@ kimi -p "Explain this repo in 3 bullet points."`;
                   subtitle: "No dependencies. Ships with Windows 10/11.",
                   icon: <LogoImg src={WINDOWS_URL} alt="Windows" className="h-4 w-4" />,
                   content: (
-                    <CodeBlock lang="powershell" filename="chat.ps1" code={`# 1) Set your Silence key + model for this PowerShell session
+                    <CodeBlock
+                      lang="powershell"
+                      filename="chat.ps1"
+                      code={`# 1) Set your Silence key + model for this PowerShell session
 $env:SILENCE_API_KEY = "<YOUR_SILENCE_API_KEY>"
 $env:MODEL           = "<YOUR_MODEL_NAME>"
 
@@ -364,7 +490,8 @@ Invoke-RestMethod -Method Post -Uri "${BASE_URL}/v1/chat/completions" \`
   -Headers @{ "Authorization" = "Bearer $env:SILENCE_API_KEY"; "Content-Type" = "application/json" } \`
   -Body $body |
   Select-Object -ExpandProperty choices |
-  ForEach-Object { $_.message.content }`} />
+  ForEach-Object { $_.message.content }`}
+                    />
                   ),
                 },
                 {
@@ -374,14 +501,30 @@ Invoke-RestMethod -Method Post -Uri "${BASE_URL}/v1/chat/completions" \`
                   icon: <Terminal className="h-4 w-4 text-[color:var(--brand)]" />,
                   content: (
                     <>
-                      <CodeBlock lang="powershell" filename="curl.exe (PowerShell / cmd)" code={`curl.exe -s "${BASE_URL}/v1/chat/completions" ^
+                      <CodeBlock
+                        lang="powershell"
+                        filename="curl.exe (PowerShell / cmd)"
+                        code={`curl.exe -s "${BASE_URL}/v1/chat/completions" ^
   -H "Authorization: Bearer <YOUR_SILENCE_API_KEY>" ^
   -H "Content-Type: application/json" ^
-  -d "{\\"model\\":\\"<YOUR_MODEL_NAME>\\",\\"messages\\":[{\\"role\\":\\"user\\",\\"content\\":\\"Hello\\"}]}"`} />
+  -d "{\\"model\\":\\"<YOUR_MODEL_NAME>\\",\\"messages\\":[{\\"role\\":\\"user\\",\\"content\\":\\"Hello\\"}]}"`}
+                      />
                       <div className="mt-3 flex items-start gap-2 rounded-xl border border-[color:var(--brand)]/20 bg-[color:var(--brand-soft)]/60 p-3 text-[13px] leading-relaxed text-[color:var(--brand-strong)]">
                         <Check className="mt-0.5 h-4 w-4 shrink-0" />
                         <span className="min-w-0">
-                          Use <code className="rounded bg-white/70 px-1.5 py-0.5 font-mono text-[12px]">curl.exe</code> (the bare <code className="rounded bg-white/70 px-1.5 py-0.5 font-mono text-[12px]">curl</code> alias points to Invoke-WebRequest). The <code className="rounded bg-white/70 px-1.5 py-0.5 font-mono text-[12px]">^</code> is line-continuation.
+                          Use{" "}
+                          <code className="rounded bg-white/70 px-1.5 py-0.5 font-mono text-[12px]">
+                            curl.exe
+                          </code>{" "}
+                          (the bare{" "}
+                          <code className="rounded bg-white/70 px-1.5 py-0.5 font-mono text-[12px]">
+                            curl
+                          </code>{" "}
+                          alias points to Invoke-WebRequest). The{" "}
+                          <code className="rounded bg-white/70 px-1.5 py-0.5 font-mono text-[12px]">
+                            ^
+                          </code>{" "}
+                          is line-continuation.
                         </span>
                       </div>
                     </>
@@ -393,9 +536,14 @@ Invoke-RestMethod -Method Post -Uri "${BASE_URL}/v1/chat/completions" \`
             {/* Claude Code */}
             <SectionHeader
               id="claude-code"
-              eyebrow={<span className="inline-flex items-center gap-1.5"><LogoImg src={ANTHROPIC_URL} alt="Anthropic" className="h-3.5 w-3.5" /> Anthropic · Claude Code</span>}
+              eyebrow={
+                <span className="inline-flex items-center gap-1.5">
+                  <LogoImg src={ANTHROPIC_URL} alt="Anthropic" className="h-3.5 w-3.5" /> Anthropic
+                  · Claude Code
+                </span>
+              }
               title="Set up Claude Code"
-              desc="Tap a step to expand. Three steps, works on Linux, macOS and Windows."
+              desc="Persistent setup for new and resumed sessions on Linux, macOS and Windows."
             />
 
             <div className="relative space-y-4 pl-5 sm:pl-6 before:absolute before:left-[9px] before:top-2 before:bottom-2 before:w-px before:bg-gradient-to-b before:from-[color:var(--brand)]/40 before:via-[color:var(--hairline)] before:to-transparent sm:before:left-[11px]">
@@ -408,23 +556,33 @@ Invoke-RestMethod -Method Post -Uri "${BASE_URL}/v1/chat/completions" \`
               >
                 <OSTabs value={os} onChange={setOs} />
                 <div className="mt-4">
-                  <CodeBlock code={installCmd[os]} lang={os === "windows" ? "powershell" : "bash"}
-                    filename={os === "linux" ? "install.sh" : os === "mac" ? "install.sh" : "install.ps1"} />
+                  <CodeBlock
+                    code={installCmd[os]}
+                    lang={os === "windows" ? "powershell" : "bash"}
+                    filename={
+                      os === "linux" ? "install.sh" : os === "mac" ? "install.sh" : "install.ps1"
+                    }
+                  />
                 </div>
               </StepCard>
 
               <StepCard
                 step={2}
                 title="Point Claude Code at Silence API"
-                subtitle="Set four environment variables"
+                subtitle="Persist credentials and add your model to /model"
                 open={openStep === 2}
                 onToggle={() => setOpenStep(openStep === 2 ? null : 2)}
               >
                 <p className="mb-3 text-sm text-muted-foreground">
-                  Replace <TokenChip>&lt;YOUR_SILENCE_API_KEY&gt;</TokenChip> and <TokenChip>&lt;YOUR_MODEL_NAME&gt;</TokenChip> with values from your admin dashboard.
+                  Replace <TokenChip>&lt;YOUR_SILENCE_API_KEY&gt;</TokenChip> and{" "}
+                  <TokenChip>&lt;YOUR_MODEL_NAME&gt;</TokenChip> with values from your admin
+                  dashboard.
                 </p>
-                <CodeBlock code={envCmd[os]} lang={os === "windows" ? "powershell" : "bash"}
-                  filename={os === "windows" ? "env.ps1" : "~/.zshrc"} />
+                <CodeBlock
+                  code={envCmd[os]}
+                  lang={os === "windows" ? "powershell" : "bash"}
+                  filename={os === "windows" ? "env.ps1" : "~/.zshrc"}
+                />
               </StepCard>
 
               <StepCard
@@ -437,7 +595,22 @@ Invoke-RestMethod -Method Post -Uri "${BASE_URL}/v1/chat/completions" \`
                 <CodeBlock code={runCmd} lang="bash" filename="run.sh" />
                 <div className="mt-3 flex items-start gap-2 rounded-xl border border-emerald-200/70 bg-emerald-50/80 p-3 text-[13px] leading-relaxed text-emerald-900">
                   <Check className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span className="min-w-0">Every request now flows through Silence API — token rotation, cost tracking and fallbacks happen automatically.</span>
+                  <span className="min-w-0">
+                    Claude Code does not import a gateway's full <code>/v1/models</code> catalog.
+                    The custom option above adds your selected Silence model to <code>/model</code>;
+                    use <code>--model</code> when resuming so an older transcript cannot restore a
+                    stale model.
+                  </span>
+                </div>
+                <div className="mt-3 flex items-start gap-2 rounded-xl border border-[color:var(--brand)]/20 bg-[color:var(--brand-soft)]/60 p-3 text-[13px] leading-relaxed text-[color:var(--brand-strong)]">
+                  <KeyRound className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span className="min-w-0">
+                    If you see “Not logged in,” run{" "}
+                    <code>printenv ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN</code> on Linux/macOS, or{" "}
+                    <code>Get-ChildItem Env:ANTHROPIC*</code> in PowerShell. Missing output means
+                    the shell profile was not loaded—open a new terminal or source it again; do not
+                    run <code>/login</code> for a Silence API key.
+                  </span>
                 </div>
               </StepCard>
             </div>
@@ -445,7 +618,11 @@ Invoke-RestMethod -Method Post -Uri "${BASE_URL}/v1/chat/completions" \`
             {/* Kimi Code */}
             <SectionHeader
               id="kimi-code"
-              eyebrow={<span className="inline-flex items-center gap-1.5"><KimiLogo className="h-3.5 w-3.5" /> Moonshot · Kimi Code CLI</span>}
+              eyebrow={
+                <span className="inline-flex items-center gap-1.5">
+                  <KimiLogo className="h-3.5 w-3.5" /> Moonshot · Kimi Code CLI
+                </span>
+              }
               title="Set up Kimi Code"
               desc="Kimi Code CLI is a single-binary terminal agent. Point it at Silence via config.toml — no Node.js required."
             />
@@ -476,7 +653,10 @@ Invoke-RestMethod -Method Post -Uri "${BASE_URL}/v1/chat/completions" \`
                 onToggle={() => setOpenKimiStep(openKimiStep === 2 ? null : 2)}
               >
                 <p className="mb-3 text-sm text-muted-foreground">
-                  Replace <TokenChip>&lt;YOUR_SILENCE_API_KEY&gt;</TokenChip> and <TokenChip>&lt;YOUR_MODEL_NAME&gt;</TokenChip> with values from your admin dashboard. Kimi Code reads credentials <em>only</em> from this file — shell env vars are ignored.
+                  Replace <TokenChip>&lt;YOUR_SILENCE_API_KEY&gt;</TokenChip> and{" "}
+                  <TokenChip>&lt;YOUR_MODEL_NAME&gt;</TokenChip> with values from your admin
+                  dashboard. Kimi Code reads credentials <em>only</em> from this file — shell env
+                  vars are ignored.
                 </p>
                 <CodeBlock code={kimiConfig} lang="toml" filename="~/.kimi-code/config.toml" />
               </StepCard>
@@ -491,14 +671,28 @@ Invoke-RestMethod -Method Post -Uri "${BASE_URL}/v1/chat/completions" \`
                 <CodeBlock code={kimiRun} lang="bash" filename="run.sh" />
                 <div className="mt-3 flex items-start gap-2 rounded-xl border border-emerald-200/70 bg-emerald-50/80 p-3 text-[13px] leading-relaxed text-emerald-900">
                   <Check className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span className="min-w-0">Tested end-to-end against Silence — Kimi Code answered <code className="rounded bg-white/70 px-1 font-mono text-[12px]">12 * 7 = 84</code> through your gateway with full token metering.</span>
+                  <span className="min-w-0">
+                    Tested end-to-end against Silence — Kimi Code answered{" "}
+                    <code className="rounded bg-white/70 px-1 font-mono text-[12px]">
+                      12 * 7 = 84
+                    </code>{" "}
+                    through your gateway with full token metering.
+                  </span>
                 </div>
               </StepCard>
             </div>
 
             {/* OpenAI SDK */}
-            <SectionHeader id="openai-sdk" eyebrow="SDK" title="OpenAI SDK" desc="Silence is a drop-in replacement — change baseURL and go." />
-            <CodeBlock lang="ts" filename="openai.ts" code={`import OpenAI from "openai";
+            <SectionHeader
+              id="openai-sdk"
+              eyebrow="SDK"
+              title="OpenAI SDK"
+              desc="Silence is a drop-in replacement — change baseURL and go."
+            />
+            <CodeBlock
+              lang="ts"
+              filename="openai.ts"
+              code={`import OpenAI from "openai";
 
 const client = new OpenAI({
   baseURL: "${BASE_URL}/v1",
@@ -509,16 +703,24 @@ const r = await client.chat.completions.create({
   model: "<YOUR_MODEL_NAME>",
   messages: [{ role: "user", content: "Hello" }],
 });
-console.log(r.choices[0].message.content);`} />
+console.log(r.choices[0].message.content);`}
+            />
 
             {/* Anthropic SDK */}
             <SectionHeader
               id="anthropic-sdk"
-              eyebrow={<span className="inline-flex items-center gap-1.5"><LogoImg src={ANTHROPIC_URL} alt="Anthropic" className="h-3.5 w-3.5" /> Anthropic</span>}
+              eyebrow={
+                <span className="inline-flex items-center gap-1.5">
+                  <LogoImg src={ANTHROPIC_URL} alt="Anthropic" className="h-3.5 w-3.5" /> Anthropic
+                </span>
+              }
               title="Anthropic SDK"
               desc="Full /v1/messages compatibility, including streaming SSE and content blocks."
             />
-            <CodeBlock lang="ts" filename="anthropic.ts" code={`import Anthropic from "@anthropic-ai/sdk";
+            <CodeBlock
+              lang="ts"
+              filename="anthropic.ts"
+              code={`import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({
   baseURL: "${BASE_URL}",
@@ -530,25 +732,46 @@ const msg = await client.messages.create({
   max_tokens: 1024,
   messages: [{ role: "user", content: "Hello" }],
 });
-console.log(msg.content);`} />
+console.log(msg.content);`}
+            />
 
             {/* Streaming */}
-            <SectionHeader id="streaming" eyebrow="Realtime" title="Streaming" desc="Server-Sent Events, proxied chunk-for-chunk with sub-100ms overhead." />
-            <CodeBlock lang="bash" filename="stream.sh" code={`curl -N ${BASE_URL}/v1/chat/completions \\
+            <SectionHeader
+              id="streaming"
+              eyebrow="Realtime"
+              title="Streaming"
+              desc="Server-Sent Events, proxied chunk-for-chunk with sub-100ms overhead."
+            />
+            <CodeBlock
+              lang="bash"
+              filename="stream.sh"
+              code={`curl -N ${BASE_URL}/v1/chat/completions \\
   -H "Authorization: Bearer $SILENCE_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "<YOUR_MODEL_NAME>",
     "stream": true,
     "messages": [{"role":"user","content":"Stream me a haiku"}]
-  }'`} />
+  }'`}
+            />
 
             {/* Errors */}
-            <SectionHeader id="errors" eyebrow="Reliability" title="Error responses" desc="Upstream details are never leaked. All failures resolve to a single friendly message." />
+            <SectionHeader
+              id="errors"
+              eyebrow="Reliability"
+              title="Error responses"
+              desc="Upstream details are never leaked. All failures resolve to a single friendly message."
+            />
             <CodeBlock code={`Server is cooked Sinket soon fix it 😑`} filename="error" />
 
             <div className="mt-12 border-t border-[color:var(--hairline)] pt-6 text-center text-xs text-muted-foreground">
-              Built with SilenceAPI · <Link to="/" className="underline decoration-dotted underline-offset-4 hover:text-foreground">Home</Link>
+              Built with SilenceAPI ·{" "}
+              <Link
+                to="/"
+                className="underline decoration-dotted underline-offset-4 hover:text-foreground"
+              >
+                Home
+              </Link>
             </div>
           </main>
         </div>
@@ -557,12 +780,28 @@ console.log(msg.content);`} />
   );
 }
 
-function SectionHeader({ id, eyebrow, title, desc }: { id: string; eyebrow: ReactNode; title: string; desc?: string }) {
+function SectionHeader({
+  id,
+  eyebrow,
+  title,
+  desc,
+}: {
+  id: string;
+  eyebrow: ReactNode;
+  title: string;
+  desc?: string;
+}) {
   return (
     <div id={id} className="scroll-mt-24 sm:scroll-mt-28">
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--brand-strong)]">{eyebrow}</div>
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--brand-strong)]">
+        {eyebrow}
+      </div>
       <h2 className="text-[22px] font-semibold tracking-tight sm:text-2xl md:text-3xl">{title}</h2>
-      {desc && <p className="mt-2 max-w-2xl text-[13.5px] leading-relaxed text-muted-foreground sm:text-sm">{desc}</p>}
+      {desc && (
+        <p className="mt-2 max-w-2xl text-[13.5px] leading-relaxed text-muted-foreground sm:text-sm">
+          {desc}
+        </p>
+      )}
     </div>
   );
 }
@@ -570,8 +809,17 @@ function SectionHeader({ id, eyebrow, title, desc }: { id: string; eyebrow: Reac
 function InfoCard({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="group relative min-w-0 overflow-hidden rounded-2xl border border-[color:var(--hairline)] bg-white/80 p-4 shadow-[var(--shadow-elegant)] backdrop-blur transition-transform hover:-translate-y-0.5">
-      <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</div>
-      <div className={cn("truncate text-sm", mono && "font-mono text-[12px] text-foreground sm:text-[12.5px]")}>{value}</div>
+      <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        {label}
+      </div>
+      <div
+        className={cn(
+          "truncate text-sm",
+          mono && "font-mono text-[12px] text-foreground sm:text-[12.5px]",
+        )}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -582,7 +830,13 @@ function CopyInline({ text }: { text: string }) {
     <button
       type="button"
       onClick={async () => {
-        try { await navigator.clipboard.writeText(text); setOk(true); setTimeout(() => setOk(false), 1400); } catch {}
+        try {
+          await navigator.clipboard.writeText(text);
+          setOk(true);
+          setTimeout(() => setOk(false), 1400);
+        } catch {
+          setOk(false);
+        }
       }}
       className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[color:var(--hairline)] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[color:var(--brand-strong)] shadow-sm transition hover:-translate-y-0.5 hover:border-[color:var(--brand)]/40 hover:bg-[color:var(--brand-soft)] active:scale-95"
       aria-label="Copy"
@@ -603,14 +857,24 @@ function BaseUrlPanel() {
           <div className="grid h-7 w-7 place-items-center rounded-lg bg-[color:var(--brand-soft)] text-[color:var(--brand-strong)] ring-1 ring-[color:var(--brand)]/20">
             <Link2 className="h-3.5 w-3.5" />
           </div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Base URL</div>
-          <span className="ml-auto rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Live</span>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Base URL
+          </div>
+          <span className="ml-auto rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+            Live
+          </span>
         </div>
         <div className="flex items-center gap-2">
-          <code className="min-w-0 flex-1 truncate rounded-lg border border-[color:var(--hairline)] bg-white/80 px-3 py-2 font-mono text-[12px] text-foreground sm:text-[13px]">{BASE_URL}</code>
+          <code className="min-w-0 flex-1 truncate rounded-lg border border-[color:var(--hairline)] bg-white/80 px-3 py-2 font-mono text-[12px] text-foreground sm:text-[13px]">
+            {BASE_URL}
+          </code>
           <CopyInline text={BASE_URL} />
         </div>
-        <div className="mt-2 text-[11.5px] text-muted-foreground">Append <code className="rounded bg-white/70 px-1 py-0.5 font-mono">/v1/chat/completions</code> or <code className="rounded bg-white/70 px-1 py-0.5 font-mono">/v1/messages</code>.</div>
+        <div className="mt-2 text-[11.5px] text-muted-foreground">
+          Append{" "}
+          <code className="rounded bg-white/70 px-1 py-0.5 font-mono">/v1/chat/completions</code> or{" "}
+          <code className="rounded bg-white/70 px-1 py-0.5 font-mono">/v1/messages</code>.
+        </div>
       </div>
 
       {/* Auth header */}
@@ -619,13 +883,26 @@ function BaseUrlPanel() {
           <div className="grid h-7 w-7 place-items-center rounded-lg bg-[color:var(--brand-soft)] text-[color:var(--brand-strong)] ring-1 ring-[color:var(--brand)]/20">
             <KeyRound className="h-3.5 w-3.5" />
           </div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Auth header</div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Auth header
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <code className="min-w-0 flex-1 truncate rounded-lg border border-[color:var(--hairline)] bg-white/80 px-3 py-2 font-mono text-[12px] text-foreground sm:text-[13px]">Authorization: Bearer sk-silence-…</code>
+          <code className="min-w-0 flex-1 truncate rounded-lg border border-[color:var(--hairline)] bg-white/80 px-3 py-2 font-mono text-[12px] text-foreground sm:text-[13px]">
+            Authorization: Bearer sk-silence-…
+          </code>
           <CopyInline text={`Authorization: Bearer sk-silence-...`} />
         </div>
-        <div className="mt-2 text-[11.5px] text-muted-foreground">Get your key from the <Link to="/admin" className="font-medium text-[color:var(--brand-strong)] underline decoration-dotted underline-offset-4">admin dashboard</Link>.</div>
+        <div className="mt-2 text-[11.5px] text-muted-foreground">
+          Get your key from the{" "}
+          <Link
+            to="/admin"
+            className="font-medium text-[color:var(--brand-strong)] underline decoration-dotted underline-offset-4"
+          >
+            admin dashboard
+          </Link>
+          .
+        </div>
       </div>
     </div>
   );
@@ -633,7 +910,9 @@ function BaseUrlPanel() {
 
 function TokenChip({ children }: { children: ReactNode }) {
   return (
-    <code className="rounded-md border border-[color:var(--brand)]/20 bg-[color:var(--brand-soft)] px-1.5 py-0.5 text-[12px] font-medium text-[color:var(--brand-strong)]">{children}</code>
+    <code className="rounded-md border border-[color:var(--brand)]/20 bg-[color:var(--brand-soft)] px-1.5 py-0.5 text-[12px] font-medium text-[color:var(--brand-strong)]">
+      {children}
+    </code>
   );
 }
 
@@ -657,15 +936,28 @@ function OSTabs({ value, onChange }: { value: OS; onChange: (v: OS) => void }) {
               : "border-[color:var(--hairline)] bg-white/70 hover:-translate-y-0.5 hover:border-[color:var(--brand)]/40 hover:bg-white",
           )}
         >
-          <div className={cn(
-            "grid h-8 w-8 shrink-0 place-items-center rounded-lg border transition sm:h-9 sm:w-9",
-            value === t.id ? "border-[color:var(--brand)]/25 bg-white" : "border-[color:var(--hairline)] bg-white",
-          )}>
+          <div
+            className={cn(
+              "grid h-8 w-8 shrink-0 place-items-center rounded-lg border transition sm:h-9 sm:w-9",
+              value === t.id
+                ? "border-[color:var(--brand)]/25 bg-white"
+                : "border-[color:var(--hairline)] bg-white",
+            )}
+          >
             <LogoImg src={t.logo} alt={t.label} className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
           <div className="min-w-0">
-            <div className={cn("truncate text-[13px] font-semibold sm:text-sm", value === t.id && "text-[color:var(--brand-strong)]")}>{t.label}</div>
-            <div className="hidden truncate text-[11px] text-muted-foreground sm:block">{t.sub}</div>
+            <div
+              className={cn(
+                "truncate text-[13px] font-semibold sm:text-sm",
+                value === t.id && "text-[color:var(--brand-strong)]",
+              )}
+            >
+              {t.label}
+            </div>
+            <div className="hidden truncate text-[11px] text-muted-foreground sm:block">
+              {t.sub}
+            </div>
           </div>
         </button>
       ))}
@@ -674,24 +966,37 @@ function OSTabs({ value, onChange }: { value: OS; onChange: (v: OS) => void }) {
 }
 
 function StepCard({
-  step, title, subtitle, children, open, onToggle,
+  step,
+  title,
+  subtitle,
+  children,
+  open,
+  onToggle,
 }: {
-  step: number; title: string; subtitle?: string; children: ReactNode;
-  open: boolean; onToggle: () => void;
+  step: number;
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+  open: boolean;
+  onToggle: () => void;
 }) {
   return (
     <div
       className={cn(
         "relative rounded-2xl border bg-white/85 shadow-[var(--shadow-elegant)] backdrop-blur transition-all duration-300",
-        open ? "border-[color:var(--brand)]/35 ring-1 ring-[color:var(--brand)]/10" : "border-[color:var(--hairline)] hover:border-[color:var(--brand)]/25",
+        open
+          ? "border-[color:var(--brand)]/35 ring-1 ring-[color:var(--brand)]/10"
+          : "border-[color:var(--hairline)] hover:border-[color:var(--brand)]/25",
       )}
     >
-      <div className={cn(
-        "absolute -left-5 top-4 grid h-6 w-6 place-items-center rounded-full border bg-white text-[11px] font-bold shadow-sm transition-all duration-300 sm:-left-6 sm:top-5",
-        open
-          ? "scale-110 border-[color:var(--brand)]/50 text-[color:var(--brand-strong)] shadow-[0_6px_20px_-8px_oklch(0.55_0.22_258/50%)]"
-          : "border-[color:var(--brand)]/25 text-[color:var(--brand-strong)]",
-      )}>
+      <div
+        className={cn(
+          "absolute -left-5 top-4 grid h-6 w-6 place-items-center rounded-full border bg-white text-[11px] font-bold shadow-sm transition-all duration-300 sm:-left-6 sm:top-5",
+          open
+            ? "scale-110 border-[color:var(--brand)]/50 text-[color:var(--brand-strong)] shadow-[0_6px_20px_-8px_oklch(0.55_0.22_258/50%)]"
+            : "border-[color:var(--brand)]/25 text-[color:var(--brand-strong)]",
+        )}
+      >
         {step}
       </div>
 
@@ -702,22 +1007,27 @@ function StepCard({
         className="flex w-full items-center gap-3 px-4 py-4 text-left sm:px-6 sm:py-5"
       >
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[15px] font-semibold tracking-tight sm:text-lg">{title}</div>
-          {subtitle && <div className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</div>}
+          <div className="truncate text-[15px] font-semibold tracking-tight sm:text-lg">
+            {title}
+          </div>
+          {subtitle && (
+            <div className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</div>
+          )}
         </div>
-        <div className={cn(
-          "grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[color:var(--hairline)] bg-white text-muted-foreground transition-all duration-500",
-          open && "rotate-180 border-[color:var(--brand)]/30 bg-[color:var(--brand-soft)] text-[color:var(--brand-strong)]",
-        )}>
+        <div
+          className={cn(
+            "grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[color:var(--hairline)] bg-white text-muted-foreground transition-all duration-500",
+            open &&
+              "rotate-180 border-[color:var(--brand)]/30 bg-[color:var(--brand-soft)] text-[color:var(--brand-strong)]",
+          )}
+        >
           <ChevronDown className="h-4 w-4" />
         </div>
       </button>
 
       <div className={cn("reveal px-4 sm:px-6", open && "is-open")}>
         <div className="reveal-inner">
-          <div className="stagger pb-5 sm:pb-6">
-            {children}
-          </div>
+          <div className="stagger pb-5 sm:pb-6">{children}</div>
         </div>
       </div>
     </div>
@@ -739,7 +1049,9 @@ function Accordion({
             key={it.id}
             className={cn(
               "overflow-hidden rounded-2xl border bg-white/85 shadow-[var(--shadow-elegant)] backdrop-blur transition-all duration-300",
-              isOpen ? "border-[color:var(--brand)]/35 ring-1 ring-[color:var(--brand)]/10" : "border-[color:var(--hairline)] hover:border-[color:var(--brand)]/25",
+              isOpen
+                ? "border-[color:var(--brand)]/35 ring-1 ring-[color:var(--brand)]/10"
+                : "border-[color:var(--hairline)] hover:border-[color:var(--brand)]/25",
             )}
           >
             <button
@@ -749,29 +1061,38 @@ function Accordion({
               className="flex w-full items-center gap-3 px-4 py-4 text-left sm:px-5"
             >
               {it.icon && (
-                <div className={cn(
-                  "grid h-9 w-9 shrink-0 place-items-center rounded-xl border transition-all duration-300",
-                  isOpen ? "border-[color:var(--brand)]/30 bg-[color:var(--brand-soft)]" : "border-[color:var(--hairline)] bg-white",
-                )}>
+                <div
+                  className={cn(
+                    "grid h-9 w-9 shrink-0 place-items-center rounded-xl border transition-all duration-300",
+                    isOpen
+                      ? "border-[color:var(--brand)]/30 bg-[color:var(--brand-soft)]"
+                      : "border-[color:var(--hairline)] bg-white",
+                  )}
+                >
                   {it.icon}
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[14.5px] font-semibold tracking-tight sm:text-[15px]">{it.title}</div>
-                {it.subtitle && <div className="mt-0.5 truncate text-xs text-muted-foreground">{it.subtitle}</div>}
+                <div className="truncate text-[14.5px] font-semibold tracking-tight sm:text-[15px]">
+                  {it.title}
+                </div>
+                {it.subtitle && (
+                  <div className="mt-0.5 truncate text-xs text-muted-foreground">{it.subtitle}</div>
+                )}
               </div>
-              <div className={cn(
-                "grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[color:var(--hairline)] bg-white text-muted-foreground transition-all duration-500",
-                isOpen && "rotate-180 border-[color:var(--brand)]/30 bg-[color:var(--brand-soft)] text-[color:var(--brand-strong)]",
-              )}>
+              <div
+                className={cn(
+                  "grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[color:var(--hairline)] bg-white text-muted-foreground transition-all duration-500",
+                  isOpen &&
+                    "rotate-180 border-[color:var(--brand)]/30 bg-[color:var(--brand-soft)] text-[color:var(--brand-strong)]",
+                )}
+              >
                 <ChevronDown className="h-4 w-4" />
               </div>
             </button>
             <div className={cn("reveal px-4 sm:px-5", isOpen && "is-open")}>
               <div className="reveal-inner">
-                <div className="stagger pb-5">
-                  {it.content}
-                </div>
+                <div className="stagger pb-5">{it.content}</div>
               </div>
             </div>
           </div>
