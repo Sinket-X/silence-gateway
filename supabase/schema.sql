@@ -313,8 +313,8 @@ security definer
 set search_path = public
 as $$
   update public.api_keys
-     set balance = greatest(0, balance - _cost),
-         total_cost = total_cost + _cost,
+     set balance = greatest(0, balance - coalesce(_cost, 0)),
+         total_cost = total_cost + coalesce(_cost, 0),
          total_requests = total_requests + 1,
          last_used_at = now()
    where id = _id;
