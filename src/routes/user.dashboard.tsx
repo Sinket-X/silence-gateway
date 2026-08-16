@@ -104,7 +104,7 @@ function Inner() {
                     <li key={e.id} className="flex items-center justify-between rounded-lg bg-[color:var(--brand-soft)]/40 px-3 py-2">
                       <div className="min-w-0">
                         <div className="truncate font-medium">{e.model_name}</div>
-                        <div className="text-[11px] text-muted-foreground">{new Date(e.created_at).toLocaleString()}</div>
+                        <div className="text-[11px] text-muted-foreground">{new Date(e.ts).toLocaleString()}</div>
                       </div>
                       <div className="text-right text-xs">
                         <div>{e.total_tokens} tok</div>
@@ -158,7 +158,7 @@ function Inner() {
                   <tbody>
                     {(u.data ?? []).map((e: any) => (
                       <tr key={e.id} className="border-b border-[color:var(--hairline)]/60">
-                        <td className="py-2 text-xs text-muted-foreground">{new Date(e.created_at).toLocaleString()}</td>
+                        <td className="py-2 text-xs text-muted-foreground">{new Date(e.ts).toLocaleString()}</td>
                         <td className="text-xs font-medium">{e.model_name}</td>
                         <td className="text-xs">{e.total_tokens}</td>
                         <td className="text-xs">${Number(e.cost).toFixed(4)}</td>
