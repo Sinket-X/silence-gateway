@@ -238,7 +238,10 @@ export async function runGateway(request: Request, openaiBody: any): Promise<Gat
       attempts.push({ token: t.id, error: e?.message ?? "network" });
       if (t.id !== "__keyless__") await cooldownToken(supabaseAdmin, t.id, 30, "network");
       await logError(supabaseAdmin, { provider, model, token: t, tokenKey, status: null, message: e?.message ?? "network error", response: "", latency: Date.now() - attemptStart, result: "failover" });
-      await logUsage(supabaseAdmin, { apiKey, provider, model, token: t, cost: 0, inTok: 0, outTok: 0, latency: Date.now() - attemptStart, success: false });
+      await Promise.allSettled([
+        logUsage(supabaseAdmin, { apiKey, provider, model, token: t, cost: 0, inTok: 0, outTok: 0, latency: Date.now() - attemptStart, success: false }),
+        bumpUsage(supabaseAdmin, t, 0, 0, apiKey),
+      ]);
       continue;
     }
 
@@ -255,7 +258,10 @@ export async function runGateway(request: Request, openaiBody: any): Promise<Gat
       }
       if (t.id !== "__keyless__") await cooldownToken(supabaseAdmin, t.id, secs, res.status === 429 ? "rate_limited" : "unhealthy");
       await logError(supabaseAdmin, { provider, model, token: t, tokenKey, status: res.status, message: describeUpstream(res.status, detail), response: detail, latency: Date.now() - attemptStart, result: "failover" });
-      await logUsage(supabaseAdmin, { apiKey, provider, model, token: t, cost: 0, inTok: 0, outTok: 0, latency: Date.now() - attemptStart, success: false });
+      await Promise.allSettled([
+        logUsage(supabaseAdmin, { apiKey, provider, model, token: t, cost: 0, inTok: 0, outTok: 0, latency: Date.now() - attemptStart, success: false }),
+        bumpUsage(supabaseAdmin, t, 0, 0, apiKey),
+      ]);
       continue;
     }
     if (res.status >= 500) {
@@ -263,7 +269,10 @@ export async function runGateway(request: Request, openaiBody: any): Promise<Gat
       attempts.push({ token: t.id, status: res.status, detail });
       if (t.id !== "__keyless__") await cooldownToken(supabaseAdmin, t.id, 15, "unhealthy");
       await logError(supabaseAdmin, { provider, model, token: t, tokenKey, status: res.status, message: describeUpstream(res.status, detail), response: detail, latency: Date.now() - attemptStart, result: "failover" });
-      await logUsage(supabaseAdmin, { apiKey, provider, model, token: t, cost: 0, inTok: 0, outTok: 0, latency: Date.now() - attemptStart, success: false });
+      await Promise.allSettled([
+        logUsage(supabaseAdmin, { apiKey, provider, model, token: t, cost: 0, inTok: 0, outTok: 0, latency: Date.now() - attemptStart, success: false }),
+        bumpUsage(supabaseAdmin, t, 0, 0, apiKey),
+      ]);
       continue;
     }
     if (res.status >= 400) {
@@ -279,7 +288,10 @@ export async function runGateway(request: Request, openaiBody: any): Promise<Gat
         // so we do NOT cool it down. Just skip to the next token.
         attempts.push({ token: t.id, status: res.status, detail: detail || "empty body" });
         await logError(supabaseAdmin, { provider, model, token: t, tokenKey, status: res.status, message: describeUpstream(res.status, detail), response: detail, latency: Date.now() - attemptStart, result: "failover" });
-        await logUsage(supabaseAdmin, { apiKey, provider, model, token: t, cost: 0, inTok: 0, outTok: 0, latency: Date.now() - attemptStart, success: false });
+        await Promise.allSettled([
+          logUsage(supabaseAdmin, { apiKey, provider, model, token: t, cost: 0, inTok: 0, outTok: 0, latency: Date.now() - attemptStart, success: false }),
+          bumpUsage(supabaseAdmin, t, 0, 0, apiKey),
+        ]);
         continue;
       }
       await bumpUsage(supabaseAdmin, t, 0, 0, apiKey);
