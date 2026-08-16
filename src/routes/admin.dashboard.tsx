@@ -25,7 +25,7 @@ function Dashboard() {
   const kpis = [
     { k: "Total Cost", v: data ? fmtUsd(data.totals.cost) : "—", sub: data ? `${fmtUsd(data.today.cost)} today` : "" },
     { k: "Total Tokens", v: data ? fmtInt(data.totals.tokens) : "—", sub: data ? `${fmtInt(data.today.tokens)} today` : "" },
-    { k: "Total Requests", v: data ? fmtInt(data.totals.requests) : "—", sub: data ? `${fmtInt(data.today.requests)} today` : "" },
+    { k: "Total Requests", v: data ? fmtInt(data.totals.requests) : "—", sub: data ? `${fmtInt(data.today.requests)} today (${data.today.ok} ok)` : "" },
     { k: "Success Rate", v: data ? `${data.totals.successRate.toFixed(1)}%` : "—", sub: data ? `${data.keys.active}/${data.keys.total} keys active` : "" },
   ];
 
