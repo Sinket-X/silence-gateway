@@ -208,8 +208,11 @@ export const getMyUsage = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("usage_events")
-      .select("id,created_at,model_name,provider_name,input_tokens,output_tokens,total_tokens,cost,latency_ms,success")
-      .order("created_at", { ascending: false })
+      // NOTE: the column is `ts`, not `created_at`. Also `provider_name` is
+      // deliberately NOT selected — end users must never learn which upstream
+      // vendor served their request.
+      .select("id,ts,model_name,input_tokens,output_tokens,total_tokens,cost,latency_ms,success")
+      .order("ts", { ascending: false })
       .limit(50);
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -225,7 +228,9 @@ export const listPublicModels = createServerFn({ method: "GET" })
     if (!profile) throw new Error("Forbidden");
     if (profile.suspended) throw new Error("Account suspended");
     const { data, error } = await supabaseAdmin.from("models")
-      .select("id,display_name,upstream_model,enabled,user_cost_per_1m,output_cost_per_1m,request_cost")
+      // `upstream_model` and `provider_id` are internal routing details — a user
+      // knowing them could go straight to the upstream vendor. Never expose.
+      .select("id,display_name,enabled,user_cost_per_1m,output_cost_per_1m,request_cost")
       .eq("enabled", true)
       .order("display_name");
     if (error) throw new Error(error.message);
