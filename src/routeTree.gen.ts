@@ -29,6 +29,7 @@ import { Route as V1MessagesCount_tokensRouteImport } from './routes/v1.messages
 import { Route as V1ChatCompletionsRouteImport } from './routes/v1.chat.completions'
 import { Route as ApiPublicV1ModelsRouteImport } from './routes/api/public/v1/models'
 import { Route as ApiPublicV1MessagesRouteImport } from './routes/api/public/v1/messages'
+import { Route as ApiPublicV1MessagesCount_tokensRouteImport } from './routes/api/public/v1/messages.count_tokens'
 import { Route as ApiPublicV1ChatCompletionsRouteImport } from './routes/api/public/v1/chat.completions'
 
 const DocsRoute = DocsRouteImport.update({
@@ -131,6 +132,12 @@ const ApiPublicV1MessagesRoute = ApiPublicV1MessagesRouteImport.update({
   path: '/api/public/v1/messages',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicV1MessagesCount_tokensRoute =
+  ApiPublicV1MessagesCount_tokensRouteImport.update({
+    id: '/count_tokens',
+    path: '/count_tokens',
+    getParentRoute: () => ApiPublicV1MessagesRoute,
+  } as any)
 const ApiPublicV1ChatCompletionsRoute =
   ApiPublicV1ChatCompletionsRouteImport.update({
     id: '/api/public/v1/chat/completions',
@@ -157,9 +164,10 @@ export interface FileRoutesByFullPath {
   '/user/': typeof UserIndexRoute
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
   '/v1/messages/count_tokens': typeof V1MessagesCount_tokensRoute
-  '/api/public/v1/messages': typeof ApiPublicV1MessagesRoute
+  '/api/public/v1/messages': typeof ApiPublicV1MessagesRouteWithChildren
   '/api/public/v1/models': typeof ApiPublicV1ModelsRoute
   '/api/public/v1/chat/completions': typeof ApiPublicV1ChatCompletionsRoute
+  '/api/public/v1/messages/count_tokens': typeof ApiPublicV1MessagesCount_tokensRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -180,9 +188,10 @@ export interface FileRoutesByTo {
   '/user': typeof UserIndexRoute
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
   '/v1/messages/count_tokens': typeof V1MessagesCount_tokensRoute
-  '/api/public/v1/messages': typeof ApiPublicV1MessagesRoute
+  '/api/public/v1/messages': typeof ApiPublicV1MessagesRouteWithChildren
   '/api/public/v1/models': typeof ApiPublicV1ModelsRoute
   '/api/public/v1/chat/completions': typeof ApiPublicV1ChatCompletionsRoute
+  '/api/public/v1/messages/count_tokens': typeof ApiPublicV1MessagesCount_tokensRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -204,9 +213,10 @@ export interface FileRoutesById {
   '/user/': typeof UserIndexRoute
   '/v1/chat/completions': typeof V1ChatCompletionsRoute
   '/v1/messages/count_tokens': typeof V1MessagesCount_tokensRoute
-  '/api/public/v1/messages': typeof ApiPublicV1MessagesRoute
+  '/api/public/v1/messages': typeof ApiPublicV1MessagesRouteWithChildren
   '/api/public/v1/models': typeof ApiPublicV1ModelsRoute
   '/api/public/v1/chat/completions': typeof ApiPublicV1ChatCompletionsRoute
+  '/api/public/v1/messages/count_tokens': typeof ApiPublicV1MessagesCount_tokensRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/messages'
     | '/api/public/v1/models'
     | '/api/public/v1/chat/completions'
+    | '/api/public/v1/messages/count_tokens'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -255,6 +266,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/messages'
     | '/api/public/v1/models'
     | '/api/public/v1/chat/completions'
+    | '/api/public/v1/messages/count_tokens'
   id:
     | '__root__'
     | '/'
@@ -278,6 +290,7 @@ export interface FileRouteTypes {
     | '/api/public/v1/messages'
     | '/api/public/v1/models'
     | '/api/public/v1/chat/completions'
+    | '/api/public/v1/messages/count_tokens'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -298,7 +311,7 @@ export interface RootRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   UserIndexRoute: typeof UserIndexRoute
   V1ChatCompletionsRoute: typeof V1ChatCompletionsRoute
-  ApiPublicV1MessagesRoute: typeof ApiPublicV1MessagesRoute
+  ApiPublicV1MessagesRoute: typeof ApiPublicV1MessagesRouteWithChildren
   ApiPublicV1ModelsRoute: typeof ApiPublicV1ModelsRoute
   ApiPublicV1ChatCompletionsRoute: typeof ApiPublicV1ChatCompletionsRoute
 }
@@ -445,6 +458,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicV1MessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/v1/messages/count_tokens': {
+      id: '/api/public/v1/messages/count_tokens'
+      path: '/count_tokens'
+      fullPath: '/api/public/v1/messages/count_tokens'
+      preLoaderRoute: typeof ApiPublicV1MessagesCount_tokensRouteImport
+      parentRoute: typeof ApiPublicV1MessagesRoute
+    }
     '/api/public/v1/chat/completions': {
       id: '/api/public/v1/chat/completions'
       path: '/api/public/v1/chat/completions'
@@ -467,6 +487,17 @@ const V1MessagesRouteWithChildren = V1MessagesRoute._addFileChildren(
   V1MessagesRouteChildren,
 )
 
+interface ApiPublicV1MessagesRouteChildren {
+  ApiPublicV1MessagesCount_tokensRoute: typeof ApiPublicV1MessagesCount_tokensRoute
+}
+
+const ApiPublicV1MessagesRouteChildren: ApiPublicV1MessagesRouteChildren = {
+  ApiPublicV1MessagesCount_tokensRoute: ApiPublicV1MessagesCount_tokensRoute,
+}
+
+const ApiPublicV1MessagesRouteWithChildren =
+  ApiPublicV1MessagesRoute._addFileChildren(ApiPublicV1MessagesRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DocsRoute: DocsRoute,
@@ -485,10 +516,20 @@ const rootRouteChildren: RootRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   UserIndexRoute: UserIndexRoute,
   V1ChatCompletionsRoute: V1ChatCompletionsRoute,
-  ApiPublicV1MessagesRoute: ApiPublicV1MessagesRoute,
+  ApiPublicV1MessagesRoute: ApiPublicV1MessagesRouteWithChildren,
   ApiPublicV1ModelsRoute: ApiPublicV1ModelsRoute,
   ApiPublicV1ChatCompletionsRoute: ApiPublicV1ChatCompletionsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
