@@ -8,7 +8,7 @@ async function assertAdmin(supabase: any, userId: string) {
 
 export type DashboardStats = {
   totals: { cost: number; tokens: number; requests: number; successRate: number };
-  today: { cost: number; tokens: number; requests: number };
+  today: { cost: number; tokens: number; requests: number; ok: number };
   byModel: { name: string; requests: number; tokens: number; cost: number }[];
   byProvider: { name: string; requests: number; tokens: number; cost: number }[];
   recent: {
@@ -27,7 +27,7 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     const dayAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
     const [{ data: allEv }, { data: todayEv }, { data: recentEv }, { data: keys }] = await Promise.all([
       supabaseAdmin.from("usage_events").select("cost,total_tokens,success"),
-      supabaseAdmin.from("usage_events").select("cost,total_tokens").gte("ts", dayAgo),
+      supabaseAdmin.from("usage_events").select("cost,total_tokens,success").gte("ts", dayAgo),
       supabaseAdmin.from("usage_events").select("*").order("ts", { ascending: false }).limit(200),
       supabaseAdmin.from("api_keys").select("balance,enabled"),
     ]);
@@ -47,9 +47,10 @@ export const getDashboardStats = createServerFn({ method: "GET" })
         a.cost += Number(e.cost || 0);
         a.tokens += Number(e.total_tokens || 0);
         a.requests += 1;
+        if (e.success) a.ok += 1;
         return a;
       },
-      { cost: 0, tokens: 0, requests: 0 },
+      { cost: 0, tokens: 0, requests: 0, ok: 0 },
     );
 
     const groupBy = (rows: any[], key: string) => {
