@@ -315,8 +315,8 @@ export async function runGateway(request: Request, openaiBody: any): Promise<Gat
         usage.completion_tokens += reasoningTok;
       }
     } catch {}
-    const inCost = (usage.prompt_tokens / 1_000_000) * Number(model.user_cost_per_1m ?? 0);
-    const outCost = (usage.completion_tokens / 1_000_000) * Number(model.user_cost_per_1m ?? model.output_cost_per_1m ?? 0);
+    const inCost = (usage.prompt_tokens / 1_000_000) * Number(model.input_cost_per_1m ?? model.user_cost_per_1m ?? 0);
+    const outCost = (usage.completion_tokens / 1_000_000) * Number(model.output_cost_per_1m ?? model.user_cost_per_1m ?? 0);
     const cost = inCost + outCost + Number(model.request_cost ?? 0);
     // Parallelize the two accounting writes — they're independent.
     await Promise.all([
@@ -371,8 +371,8 @@ function createMeterTransform(
       try { parseChunk(decoder.decode()); } catch {}
       if (reasoningTok && outTok < reasoningTok) outTok += reasoningTok;
       const { model, apiKey, token, provider, supabaseAdmin: sb, attemptStart } = ctx;
-      const inCost = (inTok / 1_000_000) * Number(model.user_cost_per_1m ?? 0);
-      const outCost = (outTok / 1_000_000) * Number(model.user_cost_per_1m ?? model.output_cost_per_1m ?? 0);
+      const inCost = (inTok / 1_000_000) * Number(model.input_cost_per_1m ?? model.user_cost_per_1m ?? 0);
+      const outCost = (outTok / 1_000_000) * Number(model.output_cost_per_1m ?? model.user_cost_per_1m ?? 0);
       const cost = inCost + outCost + Number(model.request_cost ?? 0);
       await Promise.allSettled([
         bumpUsage(sb, token, cost, inTok + outTok, apiKey),
@@ -395,13 +395,17 @@ async function markUsed(sb: any, id: string) {
   await sb.from("provider_tokens").update({ last_used_at: new Date().toISOString(), health: "healthy" }).eq("id", id);
 }
 async function bumpUsage(sb: any, token: any, cost: number, totalTokens: number, apiKey: any) {
+  // Use a transaction-like approach by parallelizing, but we MUST ensure the API key
+  // balance is updated correctly.
+  const writes = [];
   if (token.id !== "__keyless__") {
-    // Atomic: prevents race-condition balance drain under parallel load.
-    await sb.rpc("gw_debit_provider_token", { _id: token.id, _cost: cost });
+    writes.push(sb.rpc("gw_debit_provider_token", { _id: token.id, _cost: cost }));
   }
-  if (cost > 0 || totalTokens > 0) {
-    await sb.rpc("gw_debit_api_key", { _id: apiKey.id, _cost: cost, _tokens: totalTokens });
+  if (apiKey?.id) {
+    // If cost or tokens is 0 (e.g. error), we still record the request count
+    writes.push(sb.rpc("gw_debit_api_key", { _id: apiKey.id, _cost: cost, _tokens: totalTokens }));
   }
+  await Promise.allSettled(writes);
 }
 
 // Strip common secret-looking patterns from upstream error bodies before
