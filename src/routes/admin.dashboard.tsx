@@ -74,35 +74,37 @@ function Dashboard() {
 
         <GlassCard className="mt-6 p-4">
           <div className="mb-2 text-sm font-medium">Recent Requests</div>
-          <div className="overflow-x-auto">
+          <div className="max-h-[500px] overflow-auto">
             <table className="w-full min-w-[720px] text-xs">
-              <thead className="text-left text-muted-foreground">
+              <thead className="sticky top-0 bg-white/80 text-left text-muted-foreground backdrop-blur-md">
                 <tr>
-                  <th className="py-1.5 pr-3">Time</th>
-                  <th className="py-1.5 pr-3">Model</th>
-                  <th className="py-1.5 pr-3">Provider</th>
-                  <th className="py-1.5 pr-3">In</th>
-                  <th className="py-1.5 pr-3">Out</th>
-                  <th className="py-1.5 pr-3">Cost</th>
-                  <th className="py-1.5 pr-3">ms</th>
-                  <th className="py-1.5 pr-3">OK</th>
+                  <th className="py-2 pr-3">Time</th>
+                  <th className="py-2 pr-3">Model</th>
+                  <th className="py-2 pr-3">Provider</th>
+                  <th className="py-2 pr-3 text-right">In</th>
+                  <th className="py-2 pr-3 text-right">Out</th>
+                  <th className="py-2 pr-3 text-right">Cost</th>
+                  <th className="py-2 pr-3 text-right">ms</th>
+                  <th className="py-2 pr-3 text-center">OK</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border/20">
                 {(data?.recent ?? []).map((r, i) => (
-                  <tr key={i} className="border-t border-border/40">
-                    <td className="py-1.5 pr-3 whitespace-nowrap">{new Date(r.ts).toLocaleTimeString()}</td>
-                    <td className="py-1.5 pr-3">{r.model}</td>
-                    <td className="py-1.5 pr-3">{r.provider}</td>
-                    <td className="py-1.5 pr-3">{fmtInt(r.input)}</td>
-                    <td className="py-1.5 pr-3">{fmtInt(r.output)}</td>
-                    <td className="py-1.5 pr-3">{fmtUsd(r.cost)}</td>
-                    <td className="py-1.5 pr-3">{r.latency}</td>
-                    <td className="py-1.5 pr-3">{r.success ? "✓" : "✗"}</td>
+                  <tr key={i} className="hover:bg-white/50 transition-colors">
+                    <td className="py-2 pr-3 whitespace-nowrap tabular-nums">{new Date(r.ts).toLocaleTimeString()}</td>
+                    <td className="py-2 pr-3 font-medium">{r.model}</td>
+                    <td className="py-2 pr-3 opacity-70">{r.provider}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums">{fmtInt(r.input)}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums">{fmtInt(r.output)}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-emerald-600 font-medium">{fmtUsd(r.cost)}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums opacity-60">{r.latency}</td>
+                    <td className="py-2 pr-3 text-center font-bold">
+                      {r.success ? <span className="text-emerald-500">✓</span> : <span className="text-rose-500">✗</span>}
+                    </td>
                   </tr>
                 ))}
                 {!data?.recent?.length && (
-                  <tr><td colSpan={8} className="py-6 text-center text-muted-foreground">No requests yet.</td></tr>
+                  <tr><td colSpan={8} className="py-12 text-center text-muted-foreground">No requests yet.</td></tr>
                 )}
               </tbody>
             </table>
