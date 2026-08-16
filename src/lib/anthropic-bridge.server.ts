@@ -519,6 +519,13 @@ function syntheticAnthStream(anth: any): ReadableStream<Uint8Array> {
 }
 
 export async function handleCountTokens(request: Request): Promise<Response> {
+  // Token counting was previously unauthenticated — any anonymous caller could
+  // burn gateway compute and probe the endpoint. Require a valid Silence key.
+  const { authenticateGatewayKey } = await import("@/lib/gateway-auth.server");
+  const auth = await authenticateGatewayKey(request, "count_tokens");
+  if (!auth.ok) {
+    return jsonResp({ type: "error", error: { type: mapErrType(auth.status), message: auth.message } }, auth.status);
+  }
   const body = await request.json().catch(() => null);
   if (!body) return jsonResp({ type: "error", error: { type: "invalid_request_error", message: "Invalid JSON" } }, 400);
   const sys = body.system ? (typeof body.system === "string" ? body.system : flattenContent(body.system)) : "";
