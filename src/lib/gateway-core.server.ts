@@ -85,7 +85,10 @@ export async function runGateway(request: Request, openaiBody: any): Promise<Gat
 
   const modelName = String(openaiBody.model ?? "").trim();
   if (!modelName) return { kind: "error", status: 400, body: { error: { message: "model is required" } } };
-  if (modelName.length > 200 || /[,()"'\\]/.test(modelName)) {
+  // Hard allow-list. PostgREST filter strings are built from this value, so we
+  // permit ONLY characters that can appear in a real model id. Anything else is
+  // treated as "not found" rather than being escaped — no injection surface.
+  if (modelName.length > 200 || !/^[A-Za-z0-9._:@/+\- ]+$/.test(modelName)) {
     return { kind: "error", status: 404, body: { error: { message: `Model '${modelName}' not found`, type: "invalid_request" } } };
   }
   const wantStream = !!openaiBody.stream;
@@ -180,6 +183,44 @@ export async function runGateway(request: Request, openaiBody: any): Promise<Gat
   }
 
   const upstreamBody = { ...openaiBody, model: model.upstream_model };
+
+  // ===== Pre-flight spend + size guard =====
+  // Balance was previously only checked for "> 0", and cost was debited AFTER
+  // the call. That let a key holding $0.01 push a multi-hundred-thousand-token
+  // prompt and run up a huge upstream bill before the debit ever landed.
+  // We now estimate the worst-case cost BEFORE touching the provider and
+  // reject anything the key cannot actually afford.
+  const estInTok = estimatePromptTokens(openaiBody);
+  const maxInCap = Number(provider.max_input_tokens || 0);
+  if (maxInCap > 0 && estInTok > maxInCap) {
+    return { kind: "error", status: 413, body: { error: { message: `Prompt too large: ~${estInTok} tokens exceeds the ${maxInCap} token limit for this model.`, type: "invalid_request" } } };
+  }
+  const maxOutCap = Number(provider.max_output_tokens || 0);
+  if (maxOutCap > 0) {
+    const requested = Number(upstreamBody.max_tokens || 0);
+    upstreamBody.max_tokens = requested > 0 ? Math.min(requested, maxOutCap) : maxOutCap;
+  }
+  const inPrice = Number(model.input_cost_per_1m ?? model.user_cost_per_1m ?? 0);
+  const outPrice = Number(model.output_cost_per_1m ?? model.user_cost_per_1m ?? 0);
+  // Assume the model will emit up to max_tokens (or a 4k default) of output.
+  const assumedOut = Number(upstreamBody.max_tokens || 0) > 0 ? Number(upstreamBody.max_tokens) : 4096;
+  const worstCost =
+    (estInTok / 1_000_000) * inPrice +
+    (assumedOut / 1_000_000) * outPrice +
+    Number(model.request_cost ?? 0);
+  if (worstCost > Number(apiKey.balance)) {
+    return {
+      kind: "error",
+      status: 402,
+      body: {
+        error: {
+          type: "billing_error",
+          message: `Insufficient balance for this request. Estimated cost $${worstCost.toFixed(4)}, available $${Number(apiKey.balance).toFixed(4)}. Shorten the prompt, lower max_tokens, or top up.`,
+        },
+      },
+    };
+  }
+
   // OpenAI-compatible streaming does NOT emit `usage` unless the client opts in.
   // Without this, prompt/completion/reasoning tokens all come back as 0 and the
   // dashboard shows nothing for streamed (Claude Code / OpenAI SDK stream) calls.
@@ -314,7 +355,12 @@ export async function runGateway(request: Request, openaiBody: any): Promise<Gat
       return { kind: "stream", body: clientStream, tokenId: t.id, startedAt: attemptStart, ctx: { sb: supabaseAdmin, apiKey, provider, model, token: t, attemptStart } };
     }
 
-    const text = await res.text();
+    const rawText = await res.text();
+    // The upstream echoes its OWN model id (e.g. "z-ai/glm-5.2") back in the
+    // response. Returning that tells any caller exactly which vendor/model sits
+    // behind a Silence alias — the first step to going around the gateway.
+    // Rewrite it to the public display name before it ever leaves the worker.
+    const text = maskUpstreamModel(rawText, model);
     let usage = { prompt_tokens: 0, completion_tokens: 0 };
     let reasoningTok = 0;
     try {
@@ -351,6 +397,7 @@ function createMeterTransform(
   ctx: { supabaseAdmin: any; apiKey: any; provider: any; model: any; token: any; attemptStart: number },
 ): TransformStream<Uint8Array, Uint8Array> {
   const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
   let buf = "";
   let inTok = 0, outTok = 0, reasoningTok = 0;
   const parseChunk = (text: string) => {
@@ -376,8 +423,15 @@ function createMeterTransform(
   };
   return new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
-      controller.enqueue(chunk);
-      try { parseChunk(decoder.decode(chunk, { stream: true })); } catch {}
+      let text = "";
+      try { text = decoder.decode(chunk, { stream: true }); } catch {}
+      if (text) {
+        // Same upstream-model leak as the non-streaming path, but per SSE frame.
+        controller.enqueue(encoder.encode(maskUpstreamModel(text, ctx.model)));
+        try { parseChunk(text); } catch {}
+      } else {
+        controller.enqueue(chunk);
+      }
     },
     async flush() {
       try { parseChunk(decoder.decode()); } catch {}
@@ -402,6 +456,37 @@ function createMeterTransform(
 async function cooldownToken(sb: any, id: string, secs: number, health: string) {
   const until = new Date(Date.now() + secs * 1000).toISOString();
   await sb.from("provider_tokens").update({ cooldown_until: until, health, last_used_at: new Date().toISOString() }).eq("id", id);
+}
+
+/**
+ * Replace every occurrence of the upstream model id with the gateway's public
+ * alias so responses never disclose the underlying vendor/model.
+ */
+function maskUpstreamModel(text: string, model: any): string {
+  const up = String(model?.upstream_model ?? "");
+  const pub = String(model?.display_name ?? "");
+  if (!up || !pub || up === pub || !text.includes(up)) return text;
+  return text.split(up).join(pub);
+}
+
+/**
+ * Cheap, dependency-free upper-bound estimate of prompt tokens.
+ * ~4 chars per token is the standard heuristic; we round up so the pre-flight
+ * spend guard errs on the side of protecting the balance.
+ */
+export function estimatePromptTokens(body: any): number {
+  let chars = 0;
+  const walk = (v: any) => {
+    if (v == null) return;
+    if (typeof v === "string") { chars += v.length; return; }
+    if (Array.isArray(v)) { for (const x of v) walk(x); return; }
+    if (typeof v === "object") { for (const k of Object.keys(v)) walk(v[k]); return; }
+    chars += String(v).length;
+  };
+  walk(body?.messages);
+  walk(body?.system);
+  walk(body?.tools);
+  return Math.ceil(chars / 4) + 8;
 }
 async function markUsed(sb: any, id: string) {
   await sb.from("provider_tokens").update({ last_used_at: new Date().toISOString(), health: "healthy" }).eq("id", id);
@@ -428,6 +513,15 @@ function sanitizeUpstream(text: string): string {
     .replace(/sk-[A-Za-z0-9_\-]{16,}/g, "sk-***REDACTED***")
     .replace(/Bearer\s+[A-Za-z0-9._\-]{16,}/gi, "Bearer ***REDACTED***")
     .replace(/[A-Za-z0-9._\-]{40,}\.[A-Za-z0-9._\-]{20,}/g, "***REDACTED***") // long JWT-ish
+    // Provider base URLs / hostnames must never reach the caller — otherwise a
+    // client can enumerate which upstream vendor sits behind Silence and then
+    // attack it (or the token) directly.
+    .replace(/https?:\/\/[^\s"'<>)\]}]+/gi, "***UPSTREAM***")
+    // Generic long opaque credentials (api keys of other vendors: gsk_, nvapi-,
+    // xai-, hf_, AIza..., anything 32+ chars of key-ish alphabet).
+    .replace(/\b(?:gsk|nvapi|xai|hf|pk|rk|api|key|tok)[-_][A-Za-z0-9_\-]{16,}/gi, "***REDACTED***")
+    .replace(/\bAIza[A-Za-z0-9_\-]{20,}\b/g, "***REDACTED***")
+    .replace(/\b[A-Za-z0-9_\-]{48,}\b/g, "***REDACTED***")
     .slice(0, 2000);
 }
 // Human-readable one-liner for the admin error log.
