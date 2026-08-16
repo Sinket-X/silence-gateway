@@ -28,7 +28,7 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     const [{ data: allEv }, { data: todayEv }, { data: recentEv }, { data: keys }] = await Promise.all([
       supabaseAdmin.from("usage_events").select("cost,total_tokens,success"),
       supabaseAdmin.from("usage_events").select("cost,total_tokens").gte("ts", dayAgo),
-      supabaseAdmin.from("usage_events").select("*").order("ts", { ascending: false }).limit(25),
+      supabaseAdmin.from("usage_events").select("*").order("ts", { ascending: false }).limit(200),
       supabaseAdmin.from("api_keys").select("balance,enabled"),
     ]);
 
