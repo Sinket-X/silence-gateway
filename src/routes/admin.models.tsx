@@ -8,7 +8,8 @@ import { listModels, upsertModel, deleteModel, toggleModel, type ModelRow } from
 import { listProviders } from "@/lib/providers.functions";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Pencil, X, Search, Cpu, Boxes, Zap, Copy, Check } from "lucide-react";
+import { Loader2, Plus, Trash2, Pencil, X, Search, Cpu, Boxes, Zap, Copy, Check, AlertCircle } from "lucide-react";
+import { ConfirmDeleteModal } from "@/components/silence/ConfirmDeleteModal";
 
 export const Route = createFileRoute("/admin/models")({
   head: () => ({ meta: [{ title: "Models — Silence API" }] }),
@@ -39,6 +40,7 @@ function ModelsPage() {
   const [query, setQuery] = useState("");
   const [providerFilter, setProviderFilter] = useState<string>("all");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const saveM = useMutation({
     mutationFn: () => upsert({ data: { ...form } }),
@@ -152,62 +154,109 @@ function ModelsPage() {
         <GlassCard className="p-10 text-center text-sm text-muted-foreground">No models match your filters.</GlassCard>
       )}
       {filtered.length > 0 && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 py-4">
           {filtered.map((m) => (
-            <div key={m.id} className="group relative min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-b from-card to-card/60 p-4 shadow-[0_1px_0_rgba(255,255,255,0.6)_inset,0_10px_30px_-18px_rgba(15,42,90,0.35)] transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_1px_0_rgba(255,255,255,0.8)_inset,0_18px_40px_-20px_rgba(59,111,160,0.45)]">
-              <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-              <div aria-hidden className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-primary/10 blur-2xl opacity-0 transition group-hover:opacity-100" />
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[color:var(--brand-soft)] text-primary">
-                      <Cpu className="h-4 w-4" />
+            <div key={m.id} className="card-3d group relative">
+              {/* Glossy top sheen */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-[60%] rounded-[26px] bg-gradient-to-b from-white/20 to-transparent z-20" />
+              
+              {/* Circuit Trace Watermark (simplified as CSS mask/overlay) */}
+              <div className="pointer-events-none absolute inset-0 opacity-10 z-0" 
+                style={{ 
+                  backgroundImage: `linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px)`,
+                  backgroundSize: '26px 26px',
+                  maskImage: 'radial-gradient(circle 320px at 88% -8%, black, transparent 70%)',
+                  WebkitMaskImage: 'radial-gradient(circle 320px at 88% -8%, black, transparent 70%)'
+                }} 
+              />
+
+              <div className="card-3d-content relative z-10 flex flex-col p-[30px_26px_26px]">
+                <div className="flex items-start justify-between gap-3.5">
+                  <div className="flex items-start gap-3.5 min-w-0">
+                    {/* 3D Glassy Chip */}
+                    <div className="relative flex-shrink-0">
+                      <div className="flex h-[54px] w-[54px] items-center justify-center rounded-[16px] border border-white/90 bg-gradient-to-br from-white to-[#dfe8f9] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-3px_6px_rgba(160,180,220,0.35),0_10px_18px_-8px_rgba(47,111,237,0.45),0_3px_6px_-2px_rgba(40,60,110,0.15)] transition-transform duration-300 group-hover:scale-105">
+                        <Cpu className="h-[27px] w-[27px] text-[#1650c9]" />
+                      </div>
+                      {m.enabled && (
+                        <div className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-[2.5px] border-white bg-gradient-to-br from-[#4fe0ae] to-[#14996f] shadow-[0_0_0_0_rgba(20,153,111,0.5),0_2px_4px_rgba(20,153,111,0.4)] animate-pulse" />
+                      )}
                     </div>
-                    <div className="min-w-0">
-                      <div className="truncate font-semibold leading-tight">{m.display_name}</div>
-                      <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                        <span className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 font-medium">{m.provider_name}</span>
-                        <span className={"inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 " + (m.enabled ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-slate-500/10 text-slate-500")}>
-                          <span className={"h-1.5 w-1.5 rounded-full " + (m.enabled ? "bg-emerald-500" : "bg-slate-400")} />
-                          {m.enabled ? "live" : "off"}
+                    
+                    <div className="min-w-0 pt-0.5">
+                      <h3 className="font-['Space_Grotesk'] text-[20px] font-bold leading-[1.3] tracking-tight text-foreground transition-colors group-hover:text-primary">
+                        {m.display_name}
+                      </h3>
+                      <div className="mt-2.5">
+                        <span className="inline-block font-['JetBrains_Mono'] text-[10.5px] font-semibold tracking-[0.09em] text-[#1650c9] bg-gradient-to-br from-white/90 to-[#dbe8ff]/70 border border-[#2f6fed]/25 px-[9px] py-1 rounded-[7px] shadow-[0_1px_2px_rgba(47,111,237,0.15)]">
+                          {m.provider_name}
                         </span>
                       </div>
                     </div>
                   </div>
-                </div>
-                <button onClick={() => togM.mutate({ id: m.id, enabled: !m.enabled })}
-                  aria-label="Toggle model"
-                  className={"relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition " + (m.enabled ? "bg-primary" : "bg-slate-300 dark:bg-slate-700")}>
-                  <span className={"inline-block h-4 w-4 transform rounded-full bg-white shadow transition " + (m.enabled ? "translate-x-4" : "translate-x-0.5")} />
-                </button>
-              </div>
 
-              <button
-                onClick={() => copyId(m.id, m.upstream_model)}
-                title="Copy upstream id"
-                className="mt-3 flex w-full items-center justify-between gap-2 rounded-lg border border-dashed border-border bg-background/60 px-2.5 py-1.5 text-left font-mono text-[11px] text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
-              >
-                <span className="truncate">{m.upstream_model}</span>
-                {copiedId === m.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 opacity-60" />}
-              </button>
-
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                <PriceCell label="in / 1M" value={`$${m.user_cost_per_1m.toFixed(2)}`} />
-                <PriceCell label="out / 1M" value={`$${m.output_cost_per_1m.toFixed(2)}`} />
-                <PriceCell label="per req" value={`$${m.request_cost.toFixed(4)}`} />
-              </div>
-
-              <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-3">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  {m.internal_cost_per_1m > 0 ? <>cost ${m.internal_cost_per_1m.toFixed(2)}/1M</> : "internal cost n/a"}
-                </div>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => beginEdit(m)} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-[color:var(--brand-soft)] hover:text-foreground">
-                    <Pencil className="h-3.5 w-3.5" /> Edit
+                  {/* 3D Glassy Toggle */}
+                  <button
+                    onClick={() => togM.mutate({ id: m.id, enabled: !m.enabled })}
+                    className={`relative h-7 w-12 flex-shrink-0 rounded-full border border-white/50 transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),inset_0_-2px_4px_rgba(20,60,150,0.3),0_6px_14px_-4px_rgba(47,111,237,0.6)] ${
+                      m.enabled ? "bg-gradient-to-b from-[#4a8bff] to-[#2f6fed]" : "bg-gradient-to-b from-[#dbe0ea] to-[#c7cedb] shadow-[inset_0_-2px_4px_rgba(120,130,150,0.3)]"
+                    }`}
+                  >
+                    <div className={`absolute top-[3px] h-5 w-5 rounded-full bg-gradient-to-b from-white to-[#e8edf7] shadow-[0_2px_4px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.8)] transition-all duration-200 ${
+                      m.enabled ? "left-[23px]" : "left-[3px]"
+                    }`} />
                   </button>
-                  <button onClick={() => { if (confirm(`Delete model ${m.display_name}?`)) delM.mutate(m.id); }} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-destructive hover:bg-destructive/10">
-                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                </div>
+
+                {/* Upstream ID - Raised Inset */}
+                <div className="card-3d-sub-content mt-[22px] flex items-center justify-between gap-3 rounded-[15px] border border-white/80 bg-gradient-to-br from-white/55 to-white/25 p-[13px_14px] shadow-[inset_0_2px_5px_rgba(90,110,150,0.14),0_1px_0_rgba(255,255,255,0.7)]">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.11em] text-muted-foreground/60 mb-1">Upstream ID</div>
+                    <div className="truncate font-mono text-[13.5px] text-foreground leading-normal">
+                      {m.upstream_model}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => copyId(m.id, m.upstream_model)}
+                    className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] border border-white/90 bg-gradient-to-br from-white to-[#eef2f9] transition-all hover:scale-105 active:scale-95 shadow-[0_2px_5px_-1px_rgba(40,60,110,0.18),inset_0_1px_0_rgba(255,255,255,0.8)] ${
+                      copiedId === m.id ? "text-emerald-500 border-emerald-500/40 bg-emerald-50" : "text-muted-foreground hover:text-primary hover:border-primary/35"
+                    }`}
+                  >
+                    {copiedId === m.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </button>
+                </div>
+
+                {/* Stats Grid - Raised Glass Tiles */}
+                <div className="stats mt-3 grid grid-cols-3 gap-2.5">
+                  <StatTile label="Input / 1M" value={`$${m.user_cost_per_1m.toFixed(2)}`} />
+                  <StatTile label="Output / 1M" value={`$${m.output_cost_per_1m.toFixed(2)}`} />
+                  <StatTile label="Request" value={`$${m.request_cost.toFixed(4)}`} />
+                </div>
+
+                <div className="my-[20px] h-px w-full bg-gradient-to-r from-transparent via-border/40 to-transparent" />
+
+                {/* Internal Cost - Raised Amber Glass Plate */}
+                <div className="flex items-center justify-between rounded-[15px] border border-white/85 bg-gradient-to-br from-[rgba(255,247,235,0.75)] to-[rgba(255,240,215,0.35)] p-[14px_15px] shadow-[0_6px_16px_-10px_rgba(180,120,20,0.3),inset_0_1px_0_rgba(255,255,255,0.8)]">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.11em] text-muted-foreground/60 mb-1">Internal Cost</div>
+                    <div className="font-mono text-[18px] font-bold text-[#b9720f]">
+                      {m.internal_cost_per_1m > 0 ? `$${m.internal_cost_per_1m.toFixed(2)}` : "N/A"}<span className="text-[11px] font-medium text-muted-foreground ml-1">/ 1M</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => beginEdit(m)}
+                      className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/90 bg-gradient-to-br from-white to-[#eef2f9] text-muted-foreground transition-all hover:scale-105 hover:text-[#b9720f] hover:border-[#b9720f]/35 shadow-[0_2px_5px_-1px_rgba(40,60,110,0.18),inset_0_1px_0_rgba(255,255,255,0.8)]"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setDeletingId(m.id)}
+                      className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-white/90 bg-gradient-to-br from-white to-[#eef2f9] text-destructive transition-all hover:scale-105 hover:bg-destructive/10 shadow-[0_2px_5px_-1px_rgba(40,60,110,0.18),inset_0_1px_0_rgba(255,255,255,0.8)]"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -222,6 +271,19 @@ function ModelsPage() {
             if (!form.display_name.trim() || !form.upstream_model.trim()) return toast.error("Name & upstream required");
             saveM.mutate();
           }} saving={saveM.isPending} />
+      )}
+
+      {deletingId && (
+        <ConfirmDeleteModal
+          title="Delete Model"
+          description={`Are you sure you want to delete "${filtered.find(m => m.id === deletingId)?.display_name}"? This action cannot be undone.`}
+          onConfirm={() => {
+            delM.mutate(deletingId);
+            setDeletingId(null);
+          }}
+          onCancel={() => setDeletingId(null)}
+          isLoading={delM.isPending}
+        />
       )}
     </div>
   );
@@ -241,11 +303,11 @@ function KpiCard({ icon, label, value, sub }: { icon: React.ReactNode; label: st
   );
 }
 
-function PriceCell({ label, value }: { label: string; value: string }) {
+function StatTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-muted/50 px-2 py-1.5">
-      <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="font-mono text-xs font-semibold">{value}</div>
+    <div className="flex flex-col items-center justify-center rounded-[14px] border border-white/85 bg-gradient-to-br from-white/85 to-white/45 p-[13px_6px_12px] text-center shadow-[0_6px_14px_-8px_rgba(40,60,110,0.2),inset_0_1px_0_rgba(255,255,255,0.8)] transition-transform duration-200 hover:scale-[1.03]">
+      <div className="text-[9.5px] font-bold uppercase tracking-[0.1em] text-muted-foreground/60">{label}</div>
+      <div className="mt-1.5 font-mono text-[14px] font-bold text-foreground">{value}</div>
     </div>
   );
 }
@@ -254,61 +316,107 @@ function Modal({ form, setForm, providers, onClose, onSave, saving }: {
   form: Form; setForm: (f: Form) => void; providers: { id: string; name: string }[];
   onClose: () => void; onSave: () => void; saving: boolean;
 }) {
-  const inp = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30";
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 backdrop-blur-sm p-4">
-      <div className="my-8 w-full max-w-2xl rounded-2xl border border-border bg-card shadow-xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl border-b border-border bg-card/95 backdrop-blur px-5 py-3">
-          <div className="font-semibold">{form.id ? "Edit model" : "Add model"}</div>
-          <button onClick={onClose} className="rounded-md p-1 hover:bg-[color:var(--brand-soft)]"><X className="h-4 w-4" /></button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="modal animate-in fade-in zoom-in duration-300">
+        {/* Header */}
+        <div className="modal-header">
+          <h1>{form.id ? "Edit Model" : "Add Model"}</h1>
+          <button onClick={onClose} className="close-btn">
+            <X className="h-4 w-4" />
+          </button>
         </div>
-        <form onSubmit={(e) => { e.preventDefault(); onSave(); }} className="space-y-4 p-5">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <label className="space-y-1 text-xs">
-              <div className="font-medium text-muted-foreground">Provider</div>
-              <select value={form.provider_id} onChange={(e) => setForm({ ...form, provider_id: e.target.value })} className={inp}>
-                <option value="">— select —</option>
-                {providers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </label>
-            <label className="space-y-1 text-xs">
-              <div className="font-medium text-muted-foreground">Display name</div>
-              <input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} className={inp} placeholder="gpt-4o-mini" />
-            </label>
-          </div>
-          <label className="block space-y-1 text-xs">
-            <div className="font-medium text-muted-foreground">Upstream model id <span className="text-muted-foreground/70">(sent to provider)</span></div>
-            <input value={form.upstream_model} onChange={(e) => setForm({ ...form, upstream_model: e.target.value })} className={inp + " font-mono"} placeholder="gpt-4o-mini-2024-07-18" />
-          </label>
+        
+        <div className="header-divider" />
 
-          <div className="rounded-xl border border-border bg-[color:var(--brand-soft)]/40 p-4">
-            <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">User pricing (charged to customer API keys)</div>
-            <div className="grid grid-cols-2 gap-3">
-              <NumField label="$ / 1M input tokens" value={form.user_cost_per_1m} onChange={(v) => setForm({ ...form, user_cost_per_1m: v })} />
-              <NumField label="$ / 1M output tokens" value={form.output_cost_per_1m} onChange={(v) => setForm({ ...form, output_cost_per_1m: v })} />
-              <NumField label="$ per request (flat)" step="0.0001" value={form.request_cost} onChange={(v) => setForm({ ...form, request_cost: v })} />
+        {/* Body */}
+        <div className="modal-body">
+          <form id="model-form" onSubmit={(e) => { e.preventDefault(); onSave(); }}>
+            <div className="field">
+              <div className="field-label">Provider</div>
+              <div className="select-wrap">
+                <select 
+                  value={form.provider_id} 
+                  onChange={(e) => setForm({ ...form, provider_id: e.target.value })}
+                  className="select"
+                >
+                  <option value="">— select —</option>
+                  {providers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              </div>
             </div>
-          </div>
 
-          <div className="rounded-xl border border-border p-4">
-            <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Internal cost (what provider charges you — for analytics)</div>
-            <div className="grid grid-cols-2 gap-3">
-              <NumField label="$ / 1M input" value={form.input_cost_per_1m} onChange={(v) => setForm({ ...form, input_cost_per_1m: v })} />
-              <NumField label="$ / 1M internal all-in" value={form.internal_cost_per_1m} onChange={(v) => setForm({ ...form, internal_cost_per_1m: v })} />
+            <div className="field">
+              <div className="field-label">Display name</div>
+              <input 
+                value={form.display_name} 
+                onChange={(e) => setForm({ ...form, display_name: e.target.value })}
+                className="input" 
+                placeholder="gpt-4o-mini" 
+              />
             </div>
-          </div>
 
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} /> Enabled
-          </label>
+            <div className="field">
+              <div className="field-label">
+                Upstream model id <span className="hint">(sent to provider)</span>
+              </div>
+              <input 
+                value={form.upstream_model} 
+                onChange={(e) => setForm({ ...form, upstream_model: e.target.value })}
+                className="input" 
+                placeholder="gpt-4o-mini-2024-07-18" 
+              />
+            </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="rounded-lg glass ring-metallic px-4 py-2 text-sm">Cancel</button>
-            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60">
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save
-            </button>
-          </div>
-        </form>
+            {/* User Pricing Panel */}
+            <div className="panel blue">
+              <div className="panel-title">User pricing (charged to customer API keys)</div>
+              <div className="field-row">
+                <NumField label="$ / 1M input tokens" value={form.user_cost_per_1m} onChange={(v) => setForm({ ...form, user_cost_per_1m: v })} />
+                <NumField label="$ / 1M output tokens" value={form.output_cost_per_1m} onChange={(v) => setForm({ ...form, output_cost_per_1m: v })} />
+              </div>
+              <div className="field mt-3">
+                <NumField label="$ per request (flat)" step="0.0001" value={form.request_cost} onChange={(v) => setForm({ ...form, request_cost: v })} />
+              </div>
+            </div>
+
+            {/* Internal Cost Panel */}
+            <div className="panel amber">
+              <div className="panel-title">Internal cost (what provider charges you)</div>
+              <div className="field-row">
+                <NumField label="$ / 1M input" value={form.input_cost_per_1m} onChange={(v) => setForm({ ...form, input_cost_per_1m: v })} />
+                <NumField label="$ / 1M internal all-in" value={form.internal_cost_per_1m} onChange={(v) => setForm({ ...form, internal_cost_per_1m: v })} />
+              </div>
+            </div>
+
+            <div className="enabled-row">
+              <div 
+                className={`checkbox ${form.enabled ? "bg-primary" : "bg-muted"}`}
+                onClick={() => setForm({ ...form, enabled: !form.enabled })}
+              >
+                {form.enabled && <Check className="h-3.5 w-3.5" />}
+              </div>
+              <div className="enabled-label" onClick={() => setForm({ ...form, enabled: !form.enabled })}>
+                Enabled
+              </div>
+            </div>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <div className="modal-footer">
+          <button type="button" onClick={onClose} className="btn btn-cancel">Cancel</button>
+          <button 
+            type="submit" 
+            form="model-form"
+            disabled={saving} 
+            className="btn btn-save inline-flex items-center gap-2"
+          >
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            Save Changes
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -316,11 +424,16 @@ function Modal({ form, setForm, providers, onClose, onSave, saving }: {
 
 function NumField({ label, value, onChange, step = "0.01" }: { label: string; value: number; onChange: (v: number) => void; step?: string }) {
   return (
-    <label className="space-y-1 text-xs">
-      <div className="font-medium text-muted-foreground">{label}</div>
-      <input type="number" min="0" step={step} value={value}
+    <div className="field">
+      <div className="field-label">{label}</div>
+      <input 
+        type="number" 
+        min="0" 
+        step={step} 
+        value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-primary/30" />
-    </label>
+        className="input" 
+      />
+    </div>
   );
 }

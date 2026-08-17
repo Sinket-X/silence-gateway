@@ -25,11 +25,13 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const dayAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-    const [{ data: allEv }, { data: todayEv }, { data: recentEv }, { data: keys }] = await Promise.all([
-      supabaseAdmin.from("usage_events").select("cost,total_tokens,success"),
+    
+    // Optimizing query by avoiding selecting all columns for count queries
+    const [{ data: allEv, count: totalCount }, { data: todayEv }, { data: recentEv }, { data: keys }] = await Promise.all([
+      supabaseAdmin.from("usage_events").select("cost,total_tokens,success", { count: "exact" }),
       supabaseAdmin.from("usage_events").select("cost,total_tokens,success").gte("ts", dayAgo),
       supabaseAdmin.from("usage_events").select("*").order("ts", { ascending: false }).limit(200),
-      supabaseAdmin.from("api_keys").select("balance,enabled"),
+      supabaseAdmin.from("api_keys").select("balance,enabled,total_requests"),
     ]);
 
     const totals = (allEv ?? []).reduce(
@@ -42,6 +44,7 @@ export const getDashboardStats = createServerFn({ method: "GET" })
       },
       { cost: 0, tokens: 0, requests: 0, ok: 0 },
     );
+    
     const today = (todayEv ?? []).reduce(
       (a: any, e: any) => {
         a.cost += Number(e.cost || 0);
@@ -70,7 +73,7 @@ export const getDashboardStats = createServerFn({ method: "GET" })
       totals: {
         cost: totals.cost,
         tokens: totals.tokens,
-        requests: totals.requests,
+        requests: totalCount ?? totals.requests,
         successRate: totals.requests ? (totals.ok / totals.requests) * 100 : 0,
       },
       today,

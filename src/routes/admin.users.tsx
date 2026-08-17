@@ -7,7 +7,8 @@ import { GlassCard } from "@/components/silence/GlassCard";
 import { listUsers, createUser, updateUser, adjustUserBalance, deleteUser, type UserRow } from "@/lib/users.functions";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Pencil, X, Search, Wallet, PauseCircle, PlayCircle, User as UserIcon, ShieldAlert } from "lucide-react";
+import { Loader2, Plus, Trash2, Pencil, X, Search, Wallet, PauseCircle, PlayCircle, User as UserIcon, ShieldAlert, AlertCircle } from "lucide-react";
+import { ConfirmDeleteModal } from "@/components/silence/ConfirmDeleteModal";
 
 export const Route = createFileRoute("/admin/users")({
   head: () => ({ meta: [{ title: "Users — Silence API" }] }),
@@ -161,79 +162,114 @@ function Inner() {
       </GlassCard>
 
       {open && (
-        <Modal onClose={() => setOpen(null)} title={open.mode === "create" ? "Create user" : "Edit user"}>
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            if (open.mode === "create") {
-              if (!form.email || form.password.length < 8) return toast.error("Email + 8-char password required");
-              createM.mutate();
-            } else {
-              updateM.mutate({ id: open.row!.id, email: form.email || undefined, password: form.password || undefined });
-            }
-          }} className="space-y-3">
-            <Field label="Email">
-              <input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full rounded-lg border border-[color:var(--hairline)] bg-white px-3 py-2 text-sm outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand)]/25" />
-            </Field>
-            <Field label={open.mode === "edit" ? "New password (leave blank to keep)" : "Password (min 8)"}>
-              <input type="password" minLength={open.mode === "create" ? 8 : 0} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="w-full rounded-lg border border-[color:var(--hairline)] bg-white px-3 py-2 text-sm outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand)]/25" />
-            </Field>
-            {open.mode === "create" && (
-              <Field label="Initial balance (USD)">
-                <input type="number" min={0} step="0.01" value={form.initial_balance} onChange={(e) => setForm({ ...form, initial_balance: Number(e.target.value) })}
-                  className="w-full rounded-lg border border-[color:var(--hairline)] bg-white px-3 py-2 text-sm outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand)]/25" />
-                <p className="mt-1 text-[11px] text-muted-foreground">A starter API key is auto-generated with this balance.</p>
-              </Field>
-            )}
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setOpen(null)} className="rounded-lg border border-[color:var(--hairline)] px-4 py-2 text-sm">Cancel</button>
-              <button type="submit" disabled={createM.isPending || updateM.isPending}
-                className="btn-primary inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
-                {(createM.isPending || updateM.isPending) && <Loader2 className="h-4 w-4 animate-spin" />}
-                {open.mode === "create" ? "Create user" : "Save"}
-              </button>
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 backdrop-blur-sm" onClick={() => setOpen(null)}>
+          <div className="modal my-8" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h1>{open.mode === "create" ? "Create user" : "Edit user"}</h1>
+              <button onClick={() => setOpen(null)} className="close-btn"><X className="h-4 w-4" /></button>
             </div>
-          </form>
-        </Modal>
+            <div className="header-divider" />
+            
+            <div className="modal-body">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (open.mode === "create") {
+                  if (!form.email || form.password.length < 8) return toast.error("Email + 8-char password required");
+                  createM.mutate();
+                } else {
+                  updateM.mutate({ id: open.row!.id, email: form.email || undefined, password: form.password || undefined });
+                }
+              }} className="space-y-4 pb-4">
+                <div className="field">
+                  <div className="field-label">Email</div>
+                  <input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="input" />
+                </div>
+                
+                <div className="field">
+                  <div className="field-label">
+                    {open.mode === "edit" ? "New password" : "Password"}
+                    <span className="hint">{open.mode === "edit" ? "(leave blank to keep)" : "(min 8)"}</span>
+                  </div>
+                  <input type="password" minLength={open.mode === "create" ? 8 : 0} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    className="input" />
+                </div>
+
+                {open.mode === "create" && (
+                  <div className="panel blue">
+                    <div className="panel-title">ACCOUNT CONFIGURATION</div>
+                    <div className="field">
+                      <div className="field-label">Initial balance <span className="hint">(USD)</span></div>
+                      <input type="number" min={0} step="0.01" value={form.initial_balance} onChange={(e) => setForm({ ...form, initial_balance: Number(e.target.value) })}
+                        className="input" />
+                      <p className="mt-2 text-[11px] text-muted-foreground">A starter API key is auto-generated with this balance.</p>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex justify-end gap-3 pt-4">
+                  <button type="button" onClick={() => setOpen(null)} 
+                    className="rounded-xl border border-border bg-card px-6 py-2.5 text-sm font-semibold transition-all hover:bg-muted active:scale-[0.98]">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={createM.isPending || updateM.isPending}
+                    className="btn-primary inline-flex items-center justify-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-60">
+                    {(createM.isPending || updateM.isPending) && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {open.mode === "create" ? "Create user" : "Save changes"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
       )}
 
       {balanceFor && (
-        <Modal onClose={() => { setBalanceFor(null); setBalanceDelta(0); }} title={`Adjust balance — ${balanceFor.email}`}>
-          <div className="space-y-3">
-            <div className="rounded-lg bg-[color:var(--brand-soft)] p-3 text-sm">
-              Current balance: <span className="font-semibold">${Number(balanceFor.total_balance).toFixed(2)}</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={() => { setBalanceFor(null); setBalanceDelta(0); }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h1>Adjust balance</h1>
+              <button onClick={() => { setBalanceFor(null); setBalanceDelta(0); }} className="close-btn"><X className="h-4 w-4" /></button>
             </div>
-            <Field label="Amount to add (use negative to deduct)">
-              <input type="number" step="0.01" value={balanceDelta} onChange={(e) => setBalanceDelta(Number(e.target.value))}
-                className="w-full rounded-lg border border-[color:var(--hairline)] bg-white px-3 py-2 text-sm outline-none focus:border-[color:var(--brand)] focus:ring-2 focus:ring-[color:var(--brand)]/25" />
-            </Field>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => { setBalanceFor(null); setBalanceDelta(0); }} className="rounded-lg border border-[color:var(--hairline)] px-4 py-2 text-sm">Cancel</button>
-              <button onClick={() => adjustM.mutate({ id: balanceFor.id, delta: balanceDelta })} disabled={adjustM.isPending || balanceDelta === 0}
-                className="btn-primary inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
-                {adjustM.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Apply
-              </button>
+            <div className="header-divider" />
+            <div className="modal-body space-y-4">
+              <div className="panel blue">
+                <div className="panel-title">CURRENT STATUS</div>
+                <div className="text-sm font-semibold">{balanceFor.email}</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Current balance: <span className="font-bold text-primary">${Number(balanceFor.total_balance).toFixed(2)}</span>
+                </div>
+              </div>
+              
+              <div className="field">
+                <div className="field-label">Amount to add <span className="hint">(use negative to deduct)</span></div>
+                <input type="number" step="0.01" value={balanceDelta} onChange={(e) => setBalanceDelta(Number(e.target.value))}
+                  className="input" autoFocus />
+              </div>
+              
+              <div className="flex justify-end gap-3 pt-4">
+                <button onClick={() => { setBalanceFor(null); setBalanceDelta(0); }} 
+                  className="rounded-xl border border-border bg-card px-6 py-2.5 text-sm font-semibold transition-all hover:bg-muted active:scale-[0.98]">
+                  Cancel
+                </button>
+                <button onClick={() => adjustM.mutate({ id: balanceFor.id, delta: balanceDelta })} disabled={adjustM.isPending || balanceDelta === 0}
+                  className="btn-primary inline-flex items-center justify-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-60">
+                  {adjustM.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Apply adjustment
+                </button>
+              </div>
             </div>
           </div>
-        </Modal>
+        </div>
       )}
 
       {confirmDel && (
-        <Modal onClose={() => setConfirmDel(null)} title="Permanently delete user?">
-          <div className="space-y-3">
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-              This will PERMANENTLY delete <b>{confirmDel.email}</b>, all their API keys, and their auth account. This cannot be undone.
-            </div>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setConfirmDel(null)} className="rounded-lg border border-[color:var(--hairline)] px-4 py-2 text-sm">Cancel</button>
-              <button onClick={() => delM.mutate(confirmDel.id)} disabled={delM.isPending}
-                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60">
-                {delM.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Delete permanently
-              </button>
-            </div>
-          </div>
-        </Modal>
+        <ConfirmDeleteModal
+          title="Permanently delete user?"
+          description={`This will PERMANENTLY delete ${confirmDel.email}, all their API keys, and their auth account. This cannot be undone.`}
+          onConfirm={() => delM.mutate(confirmDel.id)}
+          onCancel={() => setConfirmDel(null)}
+          isLoading={delM.isPending}
+        />
       )}
     </div>
   );

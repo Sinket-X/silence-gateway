@@ -7,7 +7,8 @@ import { GlassCard } from "@/components/silence/GlassCard";
 import { listApiKeys, createApiKey, updateApiKey, adjustBalance, deleteApiKey } from "@/lib/api-keys.functions";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Copy, Check, KeyRound, Power, Wallet } from "lucide-react";
+import { Loader2, Plus, Trash2, Copy, Check, KeyRound, Power, Wallet, AlertCircle } from "lucide-react";
+import { ConfirmDeleteModal } from "@/components/silence/ConfirmDeleteModal";
 
 export const Route = createFileRoute("/admin/api-keys")({
   head: () => ({ meta: [{ title: "API Keys — Silence API" }] }),
@@ -27,6 +28,7 @@ function Inner() {
   const [balance, setBalance] = useState(0);
   const [revealed, setRevealed] = useState<{ id: string; raw: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const createM = useMutation({
     mutationFn: () => create({ data: { owner_label: label, balance: Number(balance) } }),
@@ -128,8 +130,8 @@ function Inner() {
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
                       <button onClick={() => toggleM.mutate({ id: k.id, enabled: !k.enabled })} className="rounded-md glass ring-metallic p-2 hover:bg-[color:var(--brand-soft)]" title="Toggle"><Power className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => { if (confirm(`Delete key for ${k.owner_label}?`)) delM.mutate(k.id); }}
-                        className="rounded-md glass ring-metallic p-2 text-destructive hover:bg-[color:var(--brand-soft)]" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => setDeletingId(k.id)}
+                        className="rounded-md glass ring-metallic p-2 text-destructive hover:bg-destructive/10" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </td>
                 </tr>
@@ -139,6 +141,19 @@ function Inner() {
           </table>
         </div>
       </GlassCard>
+
+      {deletingId && (
+        <ConfirmDeleteModal
+          title="Delete API Key"
+          description="Are you sure you want to delete this API key? Any applications using this key will immediately lose access to the gateway."
+          onConfirm={() => {
+            delM.mutate(deletingId);
+            setDeletingId(null);
+          }}
+          onCancel={() => setDeletingId(null)}
+          isLoading={delM.isPending}
+        />
+      )}
     </div>
   );
 }

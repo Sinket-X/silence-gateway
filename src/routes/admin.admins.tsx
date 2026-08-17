@@ -8,7 +8,8 @@ import { listAdmins, createAdmin, updateAdmin, deleteAdmin } from "@/lib/admin.f
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Pencil, ShieldCheck, Users, Crown, Mail, KeyRound, X, Search, Copy, Check } from "lucide-react";
+import { Loader2, Plus, Trash2, Pencil, ShieldCheck, Users, Crown, Mail, KeyRound, X, Search, Copy, Check, AlertCircle } from "lucide-react";
+import { ConfirmDeleteModal } from "@/components/silence/ConfirmDeleteModal";
 
 export const Route = createFileRoute("/admin/admins")({
   head: () => ({ meta: [{ title: "Admins — Silence API" }] }),
@@ -216,26 +217,13 @@ function Inner() {
 
       {/* Delete confirmation */}
       {confirmId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in" onClick={() => setConfirmId(null)}>
-          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-start gap-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-destructive/10 text-destructive"><Trash2 className="h-5 w-5" /></div>
-              <div>
-                <div className="font-semibold">Delete admin?</div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  This permanently removes <span className="font-mono text-foreground">{q.data?.find((a) => a.id === confirmId)?.email}</span> and revokes all access. This cannot be undone.
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center justify-end gap-2">
-              <button onClick={() => setConfirmId(null)} className="rounded-lg border border-border px-4 py-2 text-sm">Cancel</button>
-              <button onClick={() => deleteM.mutate(confirmId)} disabled={deleteM.isPending}
-                className="inline-flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground disabled:opacity-60">
-                {deleteM.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Delete
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteModal
+          title="Delete admin?"
+          description={`This permanently removes ${q.data?.find((a) => a.id === confirmId)?.email} and revokes all access. This cannot be undone.`}
+          onConfirm={() => deleteM.mutate(confirmId)}
+          onCancel={() => setConfirmId(null)}
+          isLoading={deleteM.isPending}
+        />
       )}
     </div>
   );

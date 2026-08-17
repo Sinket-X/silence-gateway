@@ -16,8 +16,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
   Loader2, Plus, Trash2, Pencil, Zap, X, CheckCircle2, XCircle, Eye, EyeOff,
-  ChevronDown, ChevronRight, KeyRound,
+  ChevronDown, ChevronRight, KeyRound, AlertCircle,
 } from "lucide-react";
+import { ConfirmDeleteModal } from "@/components/silence/ConfirmDeleteModal";
 
 export const Route = createFileRoute("/admin/providers")({
   head: () => ({ meta: [{ title: "Providers — Silence API" }] }),
@@ -49,6 +50,7 @@ function ProvidersPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<ProviderForm>(emptyProvider);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const saveM = useMutation({
     mutationFn: () => upsert({ data: {
@@ -145,8 +147,8 @@ function ProvidersPage() {
                   <span className={"inline-block h-4 w-4 transform rounded-full bg-white transition " + (p.enabled ? "translate-x-4" : "translate-x-0.5")} />
                 </button>
                 <button onClick={() => beginEdit(p)} className="rounded-md glass ring-metallic p-2 hover:bg-[color:var(--brand-soft)]" title="Edit"><Pencil className="h-3.5 w-3.5" /></button>
-                <button onClick={() => { if (confirm(`Delete provider ${p.name}? All its tokens will be removed.`)) deleteM.mutate(p.id); }}
-                  className="rounded-md glass ring-metallic p-2 text-destructive hover:bg-[color:var(--brand-soft)]" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
+                <button onClick={() => setDeletingId(p.id)}
+                  className="rounded-md glass ring-metallic p-2 text-destructive hover:bg-destructive/10" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
               </div>
               {isOpen && <TokensSection providerId={p.id} />}
             </GlassCard>
@@ -155,94 +157,144 @@ function ProvidersPage() {
       </div>
 
       {open && <ProviderModal form={form} setForm={setForm} onClose={() => setOpen(false)} onSave={() => saveM.mutate()} saving={saveM.isPending} />}
+
+      {deletingId && (
+        <ConfirmDeleteModal
+          title="Delete Provider"
+          description={`Are you sure you want to delete "${q.data?.find(p => p.id === deletingId)?.name}"? All associated tokens and configurations will be removed permanently.`}
+          onConfirm={() => {
+            deleteM.mutate(deletingId);
+            setDeletingId(null);
+          }}
+          onCancel={() => setDeletingId(null)}
+          isLoading={deleteM.isPending}
+        />
+      )}
+
     </div>
   );
 }
 
 function ProviderModal({ form, setForm, onClose, onSave, saving }: { form: ProviderForm; setForm: (f: ProviderForm) => void; onClose: () => void; onSave: () => void; saving: boolean; }) {
+  const inp = "input";
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 backdrop-blur-sm p-4">
-      <div className="my-8 w-full max-w-3xl rounded-2xl border border-border bg-card shadow-xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl border-b border-border bg-card/95 backdrop-blur px-5 py-3">
-          <div className="font-semibold">{form.id ? "Edit provider" : "Add provider"}</div>
-          <button onClick={onClose} className="rounded-md p-1 hover:bg-[color:var(--brand-soft)]"><X className="h-4 w-4" /></button>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="modal my-8 max-w-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h1>{form.id ? "Edit provider" : "Add provider"}</h1>
+          <button onClick={onClose} className="close-btn"><X className="h-4 w-4" /></button>
         </div>
-        <form onSubmit={(e) => { e.preventDefault(); if (!form.name.trim()) return toast.error("Name required"); if (!form.id && !form.base_url) return toast.error("Base URL required"); onSave(); }}
-          className="space-y-6 p-5">
+        <div className="header-divider" />
+        <div className="modal-body">
+          <form onSubmit={(e) => { e.preventDefault(); if (!form.name.trim()) return toast.error("Name required"); if (!form.id && !form.base_url) return toast.error("Base URL required"); onSave(); }}
+            className="space-y-6 pb-6">
 
-          <Section title="Basics" subtitle="Provider identity and upstream endpoint.">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Presets:</span>
-              <button type="button" onClick={() => setForm({
-                ...form,
-                name: form.name || "General Compute",
-                base_url: "https://api.generalcompute.com/v1",
-                rpm_limit: 100, rps_limit: 0, hourly_limit: 0,
-                daily_limit: 50000, monthly_limit: 0,
-              })} className="rounded-full glass ring-metallic px-3 py-1 text-xs hover:bg-[color:var(--brand-soft)]">General Compute (100 rpm · 50k/day)</button>
-              <button type="button" onClick={() => setForm({ ...form, name: form.name || "OpenAI", base_url: "https://api.openai.com/v1" })}
-                className="rounded-full glass ring-metallic px-3 py-1 text-xs hover:bg-[color:var(--brand-soft)]">OpenAI</button>
-              <button type="button" onClick={() => setForm({ ...form, name: form.name || "Groq", base_url: "https://api.groq.com/openai/v1" })}
-                className="rounded-full glass ring-metallic px-3 py-1 text-xs hover:bg-[color:var(--brand-soft)]">Groq</button>
+            <div className="panel blue">
+              <div className="panel-title">PRESETS & IDENTITY</div>
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground opacity-60">Presets:</span>
+                <button type="button" onClick={() => setForm({
+                  ...form,
+                  name: form.name || "General Compute",
+                  base_url: "https://api.generalcompute.com/v1",
+                  rpm_limit: 100, rps_limit: 0, hourly_limit: 0,
+                  daily_limit: 50000, monthly_limit: 0,
+                })} className="rounded-full glass ring-metallic px-3 py-1 text-[11px] font-medium hover:bg-primary/10 transition-colors">General Compute</button>
+                <button type="button" onClick={() => setForm({ ...form, name: form.name || "OpenAI", base_url: "https://api.openai.com/v1" })}
+                  className="rounded-full glass ring-metallic px-3 py-1 text-[11px] font-medium hover:bg-primary/10 transition-colors">OpenAI</button>
+                <button type="button" onClick={() => setForm({ ...form, name: form.name || "Groq", base_url: "https://api.groq.com/openai/v1" })}
+                  className="rounded-full glass ring-metallic px-3 py-1 text-[11px] font-medium hover:bg-primary/10 transition-colors">Groq</button>
+              </div>
+              
+              <div className="field">
+                <div className="field-label">Name</div>
+                <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inp} placeholder="OpenAI, Groq, Together…" />
+              </div>
+              
+              <div className="field">
+                <div className="field-label">Base URL <span className="hint">(OpenAI-compatible)</span></div>
+                <input required={!form.id} value={form.base_url} onChange={(e) => setForm({ ...form, base_url: e.target.value })} className={inp} placeholder="https://api.openai.com/v1" />
+              </div>
             </div>
-            <Field label="Name"><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inp} placeholder="OpenAI, Groq, Together…" /></Field>
-            <Field label="Base URL" hint="OpenAI-compatible base, e.g. https://api.openai.com/v1"><input required={!form.id} value={form.base_url} onChange={(e) => setForm({ ...form, base_url: e.target.value })} className={inp} placeholder="https://api.openai.com/v1" /></Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Priority" hint="Lower = tried first"><input type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })} className={inp} /></Field>
-              <Field label="Enabled">
-                <label className="mt-2 flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} /> Route traffic through this provider
+
+            <div className="field-row">
+              <div className="field">
+                <div className="field-label">Priority <span className="hint">(Lower = First)</span></div>
+                <input type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })} className={inp} />
+              </div>
+              <div className="field flex flex-col justify-center">
+                <label className="flex items-center gap-3 cursor-pointer pt-6">
+                  <input type="checkbox" className="w-4 h-4 rounded border-border" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />
+                  <span className="text-sm font-semibold">Enable Traffic</span>
                 </label>
-              </Field>
-            </div>
-            <Field label="Extra headers (JSON)" hint='Optional. e.g. {"X-Org":"acme"}'>
-              <textarea rows={2} value={form.headers_json} onChange={(e) => setForm({ ...form, headers_json: e.target.value })} className={inp + " font-mono text-xs"} />
-            </Field>
-            <Field label="Authentication">
-              <label className="mt-2 flex items-start gap-2 text-sm">
-                <input type="checkbox" className="mt-0.5" checked={!form.requires_auth} onChange={(e) => setForm({ ...form, requires_auth: !e.target.checked })} />
-                <span>
-                  <span className="font-medium">Keyless provider</span>
-                  <span className="block text-xs text-muted-foreground">Upstream doesn't need an API key. Gateway will call it without an Authorization header — no tokens required.</span>
-                </span>
-              </label>
-            </Field>
-          </Section>
-
-          <Section title="Provider limits" subtitle="Caps applied across ALL tokens of this provider. 0 = unlimited.">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <Field label="RPM" hint="requests/min"><input type="number" value={form.rpm_limit} onChange={(e) => setForm({ ...form, rpm_limit: Number(e.target.value) })} className={inp} /></Field>
-              <Field label="RPS" hint="requests/sec"><input type="number" value={form.rps_limit} onChange={(e) => setForm({ ...form, rps_limit: Number(e.target.value) })} className={inp} /></Field>
-              <Field label="RPH" hint="requests/hour"><input type="number" value={form.hourly_limit} onChange={(e) => setForm({ ...form, hourly_limit: Number(e.target.value) })} className={inp} /></Field>
-              <Field label="Daily" hint="requests/day"><input type="number" value={form.daily_limit} onChange={(e) => setForm({ ...form, daily_limit: Number(e.target.value) })} className={inp} /></Field>
-              <Field label="Monthly" hint="requests/month"><input type="number" value={form.monthly_limit} onChange={(e) => setForm({ ...form, monthly_limit: Number(e.target.value) })} className={inp} /></Field>
-            </div>
-          </Section>
-
-          <Field label="Notes"><textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className={inp} /></Field>
-
-          <div className="sticky bottom-0 -mx-5 -mb-5 flex items-center justify-end gap-2 rounded-b-2xl border-t border-border bg-card/95 px-5 py-3 backdrop-blur">
-            <button type="button" onClick={onClose} className="rounded-lg glass ring-metallic px-4 py-2 text-sm">Close</button>
-            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60">
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />} {form.id ? "Save changes" : "Create provider"}
-            </button>
-          </div>
-        </form>
-
-        <div className="border-t border-border px-5 py-5">
-          <Section title="API tokens" subtitle="Add as many keys as you want. Gateway rotates by priority + RPM/RPS + balance. When one hits its limit, the next takes over automatically.">
-            {form.requires_auth === false ? (
-              <div className="rounded-xl border border-dashed border-border bg-[color:var(--brand-soft)]/30 p-4 text-center text-xs text-muted-foreground">
-                This provider is marked <b>keyless</b> — no tokens needed. Uncheck "Keyless provider" above to manage tokens.
               </div>
-            ) : form.id ? (
-              <TokensSection providerId={form.id} />
-            ) : (
-              <div className="rounded-xl border border-dashed border-border bg-[color:var(--brand-soft)]/30 p-4 text-center text-xs text-muted-foreground">
-                Create the provider first — then add tokens with their own balance and rate limits here.
+            </div>
+
+            <div className="panel amber">
+              <div className="panel-title">LIMITS & CONFIGURATION</div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="field">
+                  <div className="field-label text-[10px]">RPM</div>
+                  <input type="number" value={form.rpm_limit} onChange={(e) => setForm({ ...form, rpm_limit: Number(e.target.value) })} className={inp} />
+                </div>
+                <div className="field">
+                  <div className="field-label text-[10px]">RPS</div>
+                  <input type="number" value={form.rps_limit} onChange={(e) => setForm({ ...form, rps_limit: Number(e.target.value) })} className={inp} />
+                </div>
+                <div className="field">
+                  <div className="field-label text-[10px]">Daily</div>
+                  <input type="number" value={form.daily_limit} onChange={(e) => setForm({ ...form, daily_limit: Number(e.target.value) })} className={inp} />
+                </div>
               </div>
-            )}
-          </Section>
+
+              <div className="mt-4 field">
+                <div className="field-label">Extra headers <span className="hint">(JSON)</span></div>
+                <textarea rows={2} value={form.headers_json} onChange={(e) => setForm({ ...form, headers_json: e.target.value })} className={inp + " h-20"} placeholder='{"X-Org":"acme"}' />
+              </div>
+
+              <div className="mt-4">
+                <label className="flex items-start gap-3 cursor-pointer bg-white/40 p-3 rounded-xl ring-1 ring-border/50 hover:bg-white/60 transition-all">
+                  <input type="checkbox" className="mt-1 w-4 h-4" checked={!form.requires_auth} onChange={(e) => setForm({ ...form, requires_auth: !e.target.checked })} />
+                  <div>
+                    <div className="text-sm font-bold">Keyless provider</div>
+                    <div className="text-[11px] text-muted-foreground leading-tight">Upstream doesn't need an API key. Gateway will call it without Authorization header.</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div className="field">
+              <div className="field-label">Internal Notes</div>
+              <textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className={inp} />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 sticky bottom-0 bg-card/80 backdrop-blur-sm -mx-2 px-2 pb-2">
+              <button type="button" onClick={onClose} 
+                className="rounded-xl border border-border bg-card px-6 py-2.5 text-sm font-semibold transition-all hover:bg-muted active:scale-[0.98]">
+                Close
+              </button>
+              <button type="submit" disabled={saving} 
+                className="btn-primary inline-flex items-center justify-center gap-2 rounded-xl px-8 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-60">
+                {saving && <Loader2 className="h-4 w-4 animate-spin" />} {form.id ? "Save changes" : "Create provider"}
+              </button>
+            </div>
+          </form>
+
+          {form.id && (
+            <div className="mt-2 border-t border-border pt-6 pb-6">
+              <div className="panel">
+                <div className="panel-title">API TOKENS</div>
+                {form.requires_auth === false ? (
+                  <div className="rounded-xl border border-dashed border-border bg-muted/30 p-8 text-center">
+                    <div className="text-sm font-semibold text-muted-foreground opacity-80">This provider is marked keyless.</div>
+                    <div className="text-xs text-muted-foreground">Uncheck "Keyless provider" to manage individual tokens.</div>
+                  </div>
+                ) : (
+                  <TokensSection providerId={form.id} />
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -284,6 +336,7 @@ function TokensSection({ providerId }: { providerId: string }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<TokenForm>(emptyToken(providerId));
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [deletingTokenId, setDeletingTokenId] = useState<string | null>(null);
 
   const saveM = useMutation({
     mutationFn: () => upsert({ data: { ...form, api_key: form.api_key || undefined } as any }),
@@ -385,7 +438,7 @@ function TokensSection({ providerId }: { providerId: string }) {
                         {testingId === t.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
                       </button>
                       <button onClick={() => beginEdit(t)} className="rounded-md p-1.5 hover:bg-white/60" title="Edit"><Pencil className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => { if (confirm(`Delete token "${t.label}"?`)) delM.mutate(t.id); }} className="rounded-md p-1.5 text-destructive hover:bg-white/60" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => setDeletingTokenId(t.id)} className="rounded-md p-1.5 text-destructive hover:bg-destructive/10" title="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </td>
                 </tr>
@@ -395,6 +448,18 @@ function TokensSection({ providerId }: { providerId: string }) {
         </div>
       )}
 
+      {deletingTokenId && (
+        <ConfirmDeleteModal
+          title="Delete Token"
+          description="Are you sure you want to delete this provider token? It will be removed from the rotation immediately."
+          onConfirm={() => {
+            delM.mutate(deletingTokenId);
+            setDeletingTokenId(null);
+          }}
+          onCancel={() => setDeletingTokenId(null)}
+          isLoading={delM.isPending}
+        />
+      )}
     </div>
   );
 }
